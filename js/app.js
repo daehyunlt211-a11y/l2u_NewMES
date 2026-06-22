@@ -6,7 +6,7 @@ import { APP_CONFIG } from './config.js';
 import { toast, confirmDialog, openModal } from './ui/components.js';
 import { escapeHtml } from './lib/format.js';
 import { getCurrentUser, login, logout, changeMyPassword } from './lib/auth.js';
-import { mountChatbot, unmountChatbot, isChatbotEnabled, setChatbotEnabled } from './ui/chat.js';
+import { mountChatbot, unmountChatbot, toggleChatbot } from './ui/chat.js';
 
 const app = document.getElementById('app');
 const initial = (s) => escapeHtml(String(s || '?').trim().slice(0, 1).toUpperCase());
@@ -31,11 +31,8 @@ function renderThemeBtn() {
 function renderChatToggle() {
   const btn = document.getElementById('chat-toggle');
   if (!btn) return;
-  const on = isChatbotEnabled();
   btn.innerHTML = icon('brain', 19);
-  btn.classList.toggle('icon-btn--active', on);
-  btn.style.opacity = on ? '1' : '0.45';
-  btn.title = on ? 'AI 비서 끄기' : 'AI 비서 켜기';
+  btn.title = 'AI 비서 열기/닫기';
 }
 
 // ---------- 레이아웃 ----------
@@ -86,7 +83,7 @@ function renderShell() {
   document.getElementById('scrim').onclick = () => { app.classList.remove('mobile-open'); document.getElementById('scrim').classList.remove('show'); };
   document.getElementById('theme-btn').onclick = toggleTheme;
   renderChatToggle();
-  document.getElementById('chat-toggle').onclick = () => { setChatbotEnabled(!isChatbotEnabled()); renderChatToggle(); toast(isChatbotEnabled() ? 'AI 비서를 켰습니다.' : 'AI 비서를 껐습니다.'); };
+  document.getElementById('chat-toggle').onclick = () => toggleChatbot();
   document.getElementById('user-avatar').onclick = (e) => { e.stopPropagation(); toggleUserMenu(); };
   const reset = document.getElementById('reset-demo');
   if (reset) reset.onclick = async () => {

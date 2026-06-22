@@ -1,46 +1,21 @@
 // =====================================================================
 // AI 비서 플로팅 챗봇 위젯 (전역 마운트)
+//  - 상단바 버튼 / 플로팅 버튼 모두 "채팅 창(입력 화면)"을 직접 열고 닫음
 // =====================================================================
 import { chatAnswer, CHAT_SUGGESTIONS } from '../lib/chatbot.js';
 import { icon } from './icons.js';
 import { escapeHtml } from '../lib/format.js';
 
-const ENABLE_KEY = 'mes_chat_enabled';
-export function isChatbotEnabled() { return localStorage.getItem(ENABLE_KEY) !== '0'; }
-export function setChatbotEnabled(on) {
-  localStorage.setItem(ENABLE_KEY, on ? '1' : '0');
-  applyChatVisibility();
-}
-function applyChatVisibility() {
-   const root = document.getElementById('chatbot-root');
-  if (!root) return;
-
-  const panel = root.querySelector('#chat-panel');
-  const fab = root.querySelector('#chat-fab');
-  const on = isChatbotEnabled();
-
-  // root 자체를 숨기면 버튼까지 사라지므로 숨기지 않음
-  root.style.display = '';
-
-  if (!on) {
-    // 챗봇 OFF 상태: 패널은 닫고 버튼은 보이게
-    panel?.setAttribute('hidden', '');
-    fab?.classList.remove('hidden');
-    fab?.classList.add('chat-fab--off');
-    fab?.setAttribute('title', 'AI 비서 켜기');
-  } else {
-    // 챗봇 ON 상태
-    fab?.classList.remove('chat-fab--off');
-    fab?.setAttribute('title', 'AI 비서에게 물어보기');
-  }
-}
+let _toggle = null; // 외부(상단바 버튼)에서 채팅 창을 열고 닫기 위한 핸들
+export function toggleChatbot() { _toggle?.(); }
+export function isChatPanelOpen() { const p = document.getElementById('chat-panel'); return !!p && !p.hidden; }
 
 export function mountChatbot() {
-  if (document.getElementById('chatbot-root')) { applyChatVisibility(); return; }
+  if (document.getElementById('chatbot-root')) return;
   const root = document.createElement('div');
   root.id = 'chatbot-root';
   root.innerHTML = `
-    <button class="chat-fab" id="chat-fab" title="AI 비서에게 물어보기">${icon('brain', 24)}</button>
+    <button class="chat-fab" id="chat-fab" title="AI 비서 열기">${icon('brain', 24)}</button>
     <div class="chat-panel" id="chat-panel" hidden>
       <div class="chat-head">
         <span class="chat-head__ico">${icon('brain', 18)}</span>
@@ -57,6 +32,7 @@ export function mountChatbot() {
     </div>`;
   document.body.appendChild(root);
 
+  const fab = root.querySelector('#chat-fab');
   const panel = root.querySelector('#chat-panel');
   const body = root.querySelector('#chat-body');
   const suggestWrap = root.querySelector('#chat-suggest');
@@ -64,26 +40,23 @@ export function mountChatbot() {
   const input = root.querySelector('#chat-q');
   let greeted = false;
 
-  const open = () => {
-    if (!isChatbotEnabled()) {
-    setChatbotEnabled(true);
+  function open() {
+    panel.hidden = false;          // 채팅 입력 창 표시
+    fab.classList.add('hidden');   // 플로팅 버튼 숨김
+    if (!greeted) {
+      greeted = true;
+      addBot({ html: '안녕하세요! 무엇을 도와드릴까요? 아래 추천 질문을 누르거나 자유롭게 입력하세요. 🤖', suggestions: CHAT_SUGGESTIONS });
+    }
+    setTimeout(() => input.focus(), 50);
   }
-
-  panel.hidden = false;
-  root.querySelector('#chat-fab').classList.add('hidden');
-
-  if (!greeted) {
-    greeted = true;
-    addBot({
-      html: '안녕하세요! 무엇을 도와드릴까요? 아래 추천 질문을 누르거나 자유롭게 입력하세요. 🤖',
-      suggestions: CHAT_SUGGESTIONS
-    });
+  function close() {
+    panel.hidden = true;           // 채팅 입력 창 숨김
+    fab.classList.remove('hidden');// 플로팅 버튼 복귀
   }
+  function toggle() { panel.hidden ? open() : close(); }
 
-  setTimeout(() => input.focus(), 50);
-};
-  const close = () => { panel.hidden = true; root.querySelector('#chat-fab').classList.remove('hidden'); };
-  root.querySelector('#chat-fab').onclick = open;
+  _toggle = toggle;                // 상단바 버튼이 호출
+  fab.onclick = open;
   root.querySelector('#chat-close').onclick = close;
 
   function scroll() { body.scrollTop = body.scrollHeight; }
@@ -123,8 +96,6 @@ export function mountChatbot() {
     addBot(res);
   }
   form.onsubmit = (e) => { e.preventDefault(); ask(input.value); };
-
-  applyChatVisibility(); // 저장된 on/off 상태 반영
 }
 
-export function unmountChatbot() { document.getElementById('chatbot-root')?.remove(); }
+export function unmountChatbot() { document.getElementById('chatbot-root')?.remove(); _toggle = null; }
