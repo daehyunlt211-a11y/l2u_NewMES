@@ -6,6 +6,7 @@ import { APP_CONFIG } from './config.js';
 import { toast, confirmDialog, openModal } from './ui/components.js';
 import { escapeHtml } from './lib/format.js';
 import { getCurrentUser, login, logout, changeMyPassword } from './lib/auth.js';
+import { mountChatbot, unmountChatbot } from './ui/chat.js';
 
 const app = document.getElementById('app');
 const initial = (s) => escapeHtml(String(s || '?').trim().slice(0, 1).toUpperCase());
@@ -221,6 +222,7 @@ function openChangePassword() {
 
 // ---------- 로그인 화면 ----------
 function renderLogin() {
+  unmountChatbot();
   app.className = '';
   app.innerHTML = `
     <div class="login-wrap">
@@ -255,6 +257,7 @@ function renderLogin() {
 let started = false;
 function startApp() {
   renderShell();
+  mountChatbot();
   if (!started) { window.addEventListener('hashchange', route); started = true; }
   if (!location.hash) location.replace('#' + DEFAULT_ROUTE);
   route();
