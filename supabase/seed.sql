@@ -205,3 +205,27 @@ on conflict (ncr_no) do nothing;
 insert into shipping_inspections (inspect_no, inspect_date, order_no, partner, item_code, item_name, inspect_qty, good_qty, defect_qty, inspector, result) values
   ('SI-2406-001', current_date-2, 'SO-2406-001','(주)현대정밀','P-1001','브라켓 ASSY',200,200,0,'최품질','합격')
 on conflict (inspect_no) do nothing;
+
+-- ---------- 9-1 RFID 태그 ----------
+insert into rfid_tags (tag_uid, tag_type, label, ref_code, lot_no, location, use_count, life_count, status, assigned_to, last_seen) values
+  ('E280-1170-0001','팔레트','출하용 팔레트 #1','P-1001','LOT-WIP-001','출하장',0,0,'활성','WO-2406-001', current_date),
+  ('E280-1170-0002','팔레트','공정간 팔레트 #2','P-1002','LOT-WIP-002','가공1라인',0,0,'활성','', current_date-1),
+  ('E280-1170-0010','대차','가공라인 대차 A','WO-2406-001','LOT-WIP-001','검사장',0,0,'활성','박생산', current_date),
+  ('E280-1170-0020','금형','브라켓 금형 M-01','CNC-01','','가공1라인',18500,50000,'활성','CNC-01', current_date-1),
+  ('E280-1170-0021','공구','엔드밀 Ø10 세트','T-001','','공구실 A-1',420,500,'활성','', current_date-2),
+  ('E280-1170-0030','검사구','버니어캘리퍼스(교정대상)','T-003','','검사실',0,0,'활성','최품질', current_date-3),
+  ('E280-1170-0040','박스','자재박스 AL판재','M-3001','LOT-A001','자재창고1',0,0,'활성','', current_date-6),
+  ('E280-1170-0099','대차','폐 대차(분실신고)','','','-',0,0,'분실','', current_date-20)
+on conflict (tag_uid) do nothing;
+
+-- ---------- 9-2 RFID 이동 이력 (LOT-WIP-001 공정→검사→포장→출하 여정) ----------
+insert into rfid_events (event_no, event_time, tag_uid, tag_type, gate, event_type, lot_no, ref_code, reader, location) values
+  ('RF-2406-001', (current_date-6)+time '09:10','E280-1170-0040','박스','창고입구','입고','LOT-A001','M-3001','RDR-IN01','자재창고1'),
+  ('RF-2406-002', (current_date-6)+time '09:25','E280-1170-0040','박스','적치랙','적치','LOT-A001','M-3001','RDR-RACK','A-03 랙'),
+  ('RF-2406-010', (current_date-3)+time '08:05','E280-1170-0010','대차','공정입구','공정이동','LOT-WIP-001','WO-2406-001','RDR-OP10','가공1라인'),
+  ('RF-2406-011', (current_date-2)+time '13:40','E280-1170-0010','대차','공정입구','공정이동','LOT-WIP-001','WO-2406-001','RDR-OP20','가공1라인'),
+  ('RF-2406-012', (current_date-1)+time '10:15','E280-1170-0010','대차','검사장','검사이동','LOT-WIP-001','WO-2406-001','RDR-QC01','검사장'),
+  ('RF-2406-013', (current_date)+time '09:30','E280-1170-0001','팔레트','포장장','포장이동','LOT-WIP-001','P-1001','RDR-PKG','포장라인'),
+  ('RF-2406-014', (current_date)+time '14:50','E280-1170-0001','팔레트','출하장','출하이동','LOT-WIP-001','P-1001','RDR-SHIP','출하장'),
+  ('RF-2406-020', (current_date-1)+time '08:30','E280-1170-0002','팔레트','공정입구','공정이동','LOT-WIP-002','P-1002','RDR-OP10','가공1라인')
+on conflict (event_no) do nothing;
