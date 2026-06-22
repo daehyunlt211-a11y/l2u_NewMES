@@ -5,8 +5,8 @@
 // 값이 비어있으면 자동으로 "데모 모드"(브라우저 localStorage)로 동작합니다.
 // =====================================================================
 
-export const SUPABASE_URL = 'https://uofznxvvwebxqroubpgk.supabase.co';      // 예: 'https://xxxxxxxx.supabase.co'
-export const SUPABASE_ANON_KEY = 'sb_publishable_zcJGOH7MVUuvMWnyab5SWA_gqeSUiGd'; // 예: 'eyJhbGci...'
+export const SUPABASE_URL = 'https://ewginugekpzzshtnvkep.supabase.co';      // NewMes 전용 프로젝트
+export const SUPABASE_ANON_KEY = 'sb_publishable_sJfIqck-sfgWoNmsV1dN3A_ty7TU0gv'; // anon(publishable) 공개키
 
 export const APP_CONFIG = {
   appName: 'LINK2US MES',
