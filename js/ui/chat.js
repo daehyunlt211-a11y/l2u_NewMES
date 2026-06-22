@@ -12,13 +12,26 @@ export function setChatbotEnabled(on) {
   applyChatVisibility();
 }
 function applyChatVisibility() {
-  const root = document.getElementById('chatbot-root');
+   const root = document.getElementById('chatbot-root');
   if (!root) return;
+
+  const panel = root.querySelector('#chat-panel');
+  const fab = root.querySelector('#chat-fab');
   const on = isChatbotEnabled();
-  root.style.display = on ? '' : 'none';
-  if (!on) { // 꺼지면 패널 닫고 버튼만 남는 상태로 정리
-    root.querySelector('#chat-panel')?.setAttribute('hidden', '');
-    root.querySelector('#chat-fab')?.classList.remove('hidden');
+
+  // root 자체를 숨기면 버튼까지 사라지므로 숨기지 않음
+  root.style.display = '';
+
+  if (!on) {
+    // 챗봇 OFF 상태: 패널은 닫고 버튼은 보이게
+    panel?.setAttribute('hidden', '');
+    fab?.classList.remove('hidden');
+    fab?.classList.add('chat-fab--off');
+    fab?.setAttribute('title', 'AI 비서 켜기');
+  } else {
+    // 챗봇 ON 상태
+    fab?.classList.remove('chat-fab--off');
+    fab?.setAttribute('title', 'AI 비서에게 물어보기');
   }
 }
 
@@ -52,11 +65,23 @@ export function mountChatbot() {
   let greeted = false;
 
   const open = () => {
-    panel.hidden = false;
-    root.querySelector('#chat-fab').classList.add('hidden');
-    if (!greeted) { greeted = true; addBot({ html: '안녕하세요! 무엇을 도와드릴까요? 아래 추천 질문을 누르거나 자유롭게 입력하세요. 🤖', suggestions: CHAT_SUGGESTIONS }); }
-    setTimeout(() => input.focus(), 50);
-  };
+    if (!isChatbotEnabled()) {
+    setChatbotEnabled(true);
+  }
+
+  panel.hidden = false;
+  root.querySelector('#chat-fab').classList.add('hidden');
+
+  if (!greeted) {
+    greeted = true;
+    addBot({
+      html: '안녕하세요! 무엇을 도와드릴까요? 아래 추천 질문을 누르거나 자유롭게 입력하세요. 🤖',
+      suggestions: CHAT_SUGGESTIONS
+    });
+  }
+
+  setTimeout(() => input.focus(), 50);
+};
   const close = () => { panel.hidden = true; root.querySelector('#chat-fab').classList.remove('hidden'); };
   root.querySelector('#chat-fab').onclick = open;
   root.querySelector('#chat-close').onclick = close;
