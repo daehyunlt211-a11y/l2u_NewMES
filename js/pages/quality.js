@@ -55,6 +55,7 @@ export const incomingInspections = createCrudPage({
   table: 'incoming_inspections', title: '수입검사', subtitle: '입고 자재의 수입검사 결과를 등록합니다.',
   searchFields: ['inspect_no', 'inbound_no', 'partner', 'item_name', 'lot_no'], searchPlaceholder: '검사번호·입고·품목·LOT 검색',
   defaultSort: { key: 'inspect_date', dir: 'desc' },
+  dateField: { key: 'inspect_date', label: '검사일' },
   filters: [{ key: 'result', label: '판정', options: ['합격', '불합격', '조건부합격'] }],
   statusChips: { key: 'result', options: ['합격', '불합격', '조건부합격'] },
   docNoField: { key: 'inspect_no', prefix: 'II' },
@@ -103,6 +104,7 @@ export const nonconformances = createCrudPage({
   table: 'nonconformances', title: '부적합관리', subtitle: '공정·검사 중 발생한 부적합(불량)을 관리하고 조치합니다.',
   searchFields: ['ncr_no', 'process', 'item_name', 'defect_type', 'worker'], searchPlaceholder: '부적합번호·공정·품목 검색',
   defaultSort: { key: 'occur_date', dir: 'desc' },
+  dateField: { key: 'occur_date', label: '발생일' },
   filters: [
     { key: 'action_type', label: '조치', options: ['폐기', '재작업', '특채', '반품'] },
     { key: 'status', label: '상태', options: ['처리중', '완료'] },
@@ -161,6 +163,7 @@ export const shippingInspections = createCrudPage({
   table: 'shipping_inspections', title: '출하검사', subtitle: '납품 전 완제품의 출하검사 결과를 등록합니다.',
   searchFields: ['inspect_no', 'order_no', 'partner', 'item_name'], searchPlaceholder: '검사번호·수주·거래처 검색',
   defaultSort: { key: 'inspect_date', dir: 'desc' },
+  dateField: { key: 'inspect_date', label: '검사일' },
   filters: [{ key: 'result', label: '판정', options: ['합격', '불합격'] }],
   statusChips: { key: 'result', options: ['합격', '불합격'] },
   docNoField: { key: 'inspect_no', prefix: 'SI' },

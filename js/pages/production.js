@@ -31,6 +31,7 @@ export const productionPlans = createCrudPage({
   table: 'production_plans', title: '생산계획관리', subtitle: '수주 기반 생산계획을 수립하고 일정을 관리합니다.',
   searchFields: ['plan_no', 'order_no', 'item_code', 'item_name', 'line'], searchPlaceholder: '계획번호·수주·품목 검색',
   defaultSort: { key: 'plan_date', dir: 'desc' },
+  dateField: { key: 'plan_date', label: '계획일' },
   filters: [{ key: 'status', label: '상태', options: ['계획', '진행', '완료', '보류'] }],
   statusChips: { key: 'status', options: ['계획', '진행', '완료', '보류'] },
   docNoField: { key: 'plan_no', prefix: 'PP' },
@@ -81,6 +82,7 @@ export const workOrders = createCrudPage({
   table: 'work_orders', title: '작업지시관리', subtitle: '생산계획을 작업지시로 전개하고 현장에 배포합니다.',
   searchFields: ['wo_no', 'plan_no', 'item_name', 'process', 'equipment', 'worker'], searchPlaceholder: '작업지시·품목·공정 검색',
   defaultSort: { key: 'wo_date', dir: 'desc' },
+  dateField: { key: 'wo_date', label: '지시일' },
   filters: [
     { key: 'status', label: '상태', options: ['대기', '작업중', '완료', '중단'] },
     { key: 'line', label: '라인', options: ['가공1라인', '가공2라인', '조립라인', '포장라인'] },
@@ -145,6 +147,7 @@ export const productionResults = createCrudPage({
   table: 'production_results', title: '생산실적', subtitle: '작업지시별 생산 실적(양품·불량)을 등록합니다.',
   searchFields: ['result_no', 'wo_no', 'item_name', 'process', 'worker'], searchPlaceholder: '실적번호·작업지시·품목 검색',
   defaultSort: { key: 'result_date', dir: 'desc' },
+  dateField: { key: 'result_date', label: '실적일' },
   filters: [{ key: 'process', label: '공정', options: ['CNC 황삭', 'CNC 정삭', '조립', '검사', '포장'] }],
   docNoField: { key: 'result_no', prefix: 'PR' },
   stats: async (rows) => {

@@ -18,6 +18,7 @@ export const materialInbounds = createCrudPage({
   table: 'material_inbounds', title: '자재입고관리', subtitle: '구매·외주 자재의 입고를 등록하고 관리합니다.',
   searchFields: ['inbound_no', 'partner', 'item_code', 'item_name', 'lot_no'], searchPlaceholder: '입고번호·거래처·품목·LOT 검색',
   defaultSort: { key: 'inbound_date', dir: 'desc' },
+  dateField: { key: 'inbound_date', label: '입고일' },
   filters: [
     { key: 'status', label: '상태', options: ['입고예정', '입고완료'] },
     { key: 'warehouse', label: '창고', options: ['자재창고1', '자재창고2', '외주창고'] },
@@ -78,6 +79,7 @@ export const materialOutbounds = createCrudPage({
   table: 'material_outbounds', title: '자재반출관리', subtitle: '생산투입·외주 등 자재 출고(반출)를 관리합니다.',
   searchFields: ['outbound_no', 'item_code', 'item_name', 'wo_no', 'worker'], searchPlaceholder: '반출번호·품목·작업지시 검색',
   defaultSort: { key: 'outbound_date', dir: 'desc' },
+  dateField: { key: 'outbound_date', label: '반출일' },
   filters: [{ key: 'purpose', label: '용도', options: ['생산투입', '외주', '반품'] }],
   statusChips: { key: 'purpose', options: ['생산투입', '외주', '반품'] },
   docNoField: { key: 'outbound_no', prefix: 'MO' },

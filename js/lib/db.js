@@ -37,6 +37,12 @@ function applyQuery(rows, opts = {}) {
       out = out.filter(r => String(r[k] ?? '') === String(v));
     }
   }
+  // 날짜 기간 필터 (YYYY-MM-DD 문자열 비교, 시작/종료일 포함)
+  if (opts.dateRange && opts.dateRange.key) {
+    const { key, from, to } = opts.dateRange;
+    if (from) out = out.filter(r => String(r[key] ?? '').slice(0, 10) >= from);
+    if (to) out = out.filter(r => String(r[key] ?? '').slice(0, 10) <= to);
+  }
   if (sort) {
     const dir = sortDir === 'desc' ? -1 : 1;
     out.sort((a, b) => {
@@ -141,6 +147,11 @@ const sbAdapter = {
 };
 function sbFilters(q, opts) {
   if (opts.filters) for (const [k, v] of Object.entries(opts.filters)) { if (v !== '' && v != null && v !== '__all__') q = q.eq(k, v); }
+  if (opts.dateRange && opts.dateRange.key) {
+    const { key, from, to } = opts.dateRange;
+    if (from) q = q.gte(key, from);
+    if (to) q = q.lte(key, to + 'T23:59:59'); // 종료일 당일 포함(timestamptz 안전)
+  }
   if (opts.search && opts.searchFields?.length) {
     const or = opts.searchFields.map(f => `${f}.ilike.%${opts.search}%`).join(',');
     q = q.or(or);

@@ -15,9 +15,12 @@ export function createCrudPage(cfg) {
       sortDir: cfg.defaultSort?.dir || 'asc',
       filters: {},
       chip: '__all__',
+      dateFrom: '', dateTo: '',
       selected: new Set(),
     };
     let pageRows = []; // 현재 페이지 행 (일괄작업 매핑용)
+    // 날짜 기간 조회 옵션 (cfg.dateField 설정 시)
+    const dateRangeOpt = () => cfg.dateField ? { key: cfg.dateField.key, from: state.dateFrom, to: state.dateTo } : undefined;
 
     root.innerHTML = `
       <div class="page-head">
@@ -75,11 +78,44 @@ export function createCrudPage(cfg) {
         .concat(f.options.map(o => `<option value="${escapeHtml(optVal(o))}">${escapeHtml(optLabel(o))}</option>`)).join('');
       toolbarHtml += `<select class="select" style="width:auto;min-width:150px" data-filter="${escapeHtml(f.key)}">${opts}</select>`;
     }
+    if (cfg.dateField) {
+      toolbarHtml += `
+        <div class="date-range" title="${escapeHtml(cfg.dateField.label || '날짜')} 기간 조회">
+          <select class="select" data-date-preset style="width:auto;min-width:96px">
+            <option value="">기간 전체</option>
+            <option value="today">오늘</option>
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+            <option value="month">이번 달</option>
+          </select>
+          <input class="input input--date" type="date" data-date-from aria-label="시작일"/>
+          <span class="date-range__sep">~</span>
+          <input class="input input--date" type="date" data-date-to aria-label="종료일"/>
+        </div>`;
+    }
     toolbar.innerHTML = toolbarHtml;
     toolbar.querySelector('#search').addEventListener('input', debounce((e) => { state.search = e.target.value.trim(); state.page = 1; load(); }));
     toolbar.querySelectorAll('[data-filter]').forEach(sel => {
       sel.addEventListener('change', (e) => { state.filters[e.target.dataset.filter] = e.target.value; state.page = 1; load(); });
     });
+    if (cfg.dateField) {
+      const fromEl = toolbar.querySelector('[data-date-from]');
+      const toEl = toolbar.querySelector('[data-date-to]');
+      const presetEl = toolbar.querySelector('[data-date-preset]');
+      const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const applyDates = () => { state.dateFrom = fromEl.value; state.dateTo = toEl.value; state.page = 1; load(); };
+      fromEl.addEventListener('change', () => { presetEl.value = ''; applyDates(); });
+      toEl.addEventListener('change', () => { presetEl.value = ''; applyDates(); });
+      presetEl.addEventListener('change', () => {
+        const v = presetEl.value, now = new Date();
+        let from = '', to = '';
+        if (v === 'today') { from = to = isoLocal(now); }
+        else if (v === '7') { const d = new Date(now); d.setDate(d.getDate() - 6); from = isoLocal(d); to = isoLocal(now); }
+        else if (v === '30') { const d = new Date(now); d.setDate(d.getDate() - 29); from = isoLocal(d); to = isoLocal(now); }
+        else if (v === 'month') { from = isoLocal(new Date(now.getFullYear(), now.getMonth(), 1)); to = isoLocal(now); }
+        fromEl.value = from; toEl.value = to; applyDates();
+      });
+    }
 
     // ----- 상태칩(빠른 필터) -----
     if (cfg.statusChips) renderChips();
@@ -105,7 +141,7 @@ export function createCrudPage(cfg) {
     async function load() {
       tableSlot.innerHTML = `<div class="spinner"></div>`;
       try {
-        const opts = { search: state.search, searchFields: cfg.searchFields, filters: { ...state.filters }, sort: state.sort, sortDir: state.sortDir, page: state.page, pageSize: state.pageSize };
+        const opts = { search: state.search, searchFields: cfg.searchFields, filters: { ...state.filters }, dateRange: dateRangeOpt(), sort: state.sort, sortDir: state.sortDir, page: state.page, pageSize: state.pageSize };
         const { rows, total } = await db.list(cfg.table, opts);
         state.selected.clear();
         renderTable(rows);
@@ -121,7 +157,7 @@ export function createCrudPage(cfg) {
 
     async function renderStats() {
       try {
-        const all = await db.all(cfg.table, { search: state.search, searchFields: cfg.searchFields, filters: { ...state.filters } });
+        const all = await db.all(cfg.table, { search: state.search, searchFields: cfg.searchFields, filters: { ...state.filters }, dateRange: dateRangeOpt() });
         const cards = await cfg.stats(all);
         statsSlot.innerHTML = `<div class="stat-grid">` + cards.map(c => `
           <div class="stat">
@@ -137,7 +173,7 @@ export function createCrudPage(cfg) {
 
     async function updateChipCounts() {
       const c = cfg.statusChips;
-      const all = await db.all(cfg.table, { search: state.search, searchFields: cfg.searchFields });
+      const all = await db.all(cfg.table, { search: state.search, searchFields: cfg.searchFields, dateRange: dateRangeOpt() });
       const counts = {}; let total = 0;
       for (const r of all) { const v = String(r[c.key] ?? ''); counts[v] = (counts[v] || 0) + 1; total++; }
       root.querySelectorAll('[data-count]').forEach(el => {
@@ -392,7 +428,7 @@ export function createCrudPage(cfg) {
 
     async function exportCsv() {
       try {
-        const all = await db.all(cfg.table, { search: state.search, searchFields: cfg.searchFields, filters: { ...state.filters }, sort: state.sort, sortDir: state.sortDir });
+        const all = await db.all(cfg.table, { search: state.search, searchFields: cfg.searchFields, filters: { ...state.filters }, dateRange: dateRangeOpt(), sort: state.sort, sortDir: state.sortDir });
         const csvCols = cfg.columns.map(c => ({ label: c.label, key: c.key, csv: c.csv || (c.type === 'date' ? (r) => fmtDate(r[c.key]) : c.type === 'yesno' ? (r) => (r[c.key] ? '사용' : '미사용') : null) }));
         downloadCSV(`${cfg.title}_${new Date().toISOString().slice(0, 10)}.csv`, csvCols, all);
         toast('CSV로 내보냈습니다.');

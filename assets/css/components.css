@@ -548,3 +548,12 @@ table.grid td.center, table.grid th.center { text-align: center; }
 
 /* AI 비서 토글(상단바) 활성 상태 */
 .icon-btn--active { color: var(--brand); background: var(--brand-50); }
+
+/* ===================== 날짜 기간 조회 (툴바) ===================== */
+.date-range { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.date-range__sep { color: var(--text-3); }
+.input--date {
+  width: auto; min-width: 150px; padding: 8px 10px;
+  font-size: 13px; color-scheme: light dark;
+}
+[data-theme="dark"] .input--date::-webkit-calendar-picker-indicator { filter: invert(0.8); }
