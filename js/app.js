@@ -6,7 +6,7 @@ import { APP_CONFIG } from './config.js';
 import { toast, confirmDialog, openModal } from './ui/components.js';
 import { escapeHtml } from './lib/format.js';
 import { getCurrentUser, login, logout, changeMyPassword } from './lib/auth.js';
-import { mountChatbot, unmountChatbot } from './ui/chat.js';
+import { mountChatbot, unmountChatbot, isChatbotEnabled, setChatbotEnabled } from './ui/chat.js';
 
 const app = document.getElementById('app');
 const initial = (s) => escapeHtml(String(s || '?').trim().slice(0, 1).toUpperCase());
@@ -27,6 +27,15 @@ function toggleTheme() {
 function renderThemeBtn() {
   const btn = document.getElementById('theme-btn');
   if (btn) btn.innerHTML = icon(document.documentElement.getAttribute('data-theme') === 'dark' ? 'sun' : 'moon', 19);
+}
+function renderChatToggle() {
+  const btn = document.getElementById('chat-toggle');
+  if (!btn) return;
+  const on = isChatbotEnabled();
+  btn.innerHTML = icon('brain', 19);
+  btn.classList.toggle('icon-btn--active', on);
+  btn.style.opacity = on ? '1' : '0.45';
+  btn.title = on ? 'AI 비서 끄기' : 'AI 비서 켜기';
 }
 
 // ---------- 레이아웃 ----------
@@ -51,6 +60,7 @@ function renderShell() {
         <div class="breadcrumb" id="breadcrumb"></div>
         <div class="topbar__spacer"></div>
         ${IS_DEMO ? `<span class="badge badge--warning" title="Supabase 미연결 — 브라우저에 임시 저장됩니다">데모 모드</span>` : `<span class="badge badge--success">Supabase 연결됨</span>`}
+        <button class="icon-btn" id="chat-toggle" title="AI 비서 켜기/끄기"></button>
         <button class="icon-btn" id="theme-btn" title="테마 전환"></button>
         <button class="icon-btn" title="알림">${icon('bell', 19)}</button>
         <div class="user-menu">
@@ -75,6 +85,8 @@ function renderShell() {
   };
   document.getElementById('scrim').onclick = () => { app.classList.remove('mobile-open'); document.getElementById('scrim').classList.remove('show'); };
   document.getElementById('theme-btn').onclick = toggleTheme;
+  renderChatToggle();
+  document.getElementById('chat-toggle').onclick = () => { setChatbotEnabled(!isChatbotEnabled()); renderChatToggle(); toast(isChatbotEnabled() ? 'AI 비서를 켰습니다.' : 'AI 비서를 껐습니다.'); };
   document.getElementById('user-avatar').onclick = (e) => { e.stopPropagation(); toggleUserMenu(); };
   const reset = document.getElementById('reset-demo');
   if (reset) reset.onclick = async () => {

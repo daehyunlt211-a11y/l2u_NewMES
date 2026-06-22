@@ -5,8 +5,25 @@ import { chatAnswer, CHAT_SUGGESTIONS } from '../lib/chatbot.js';
 import { icon } from './icons.js';
 import { escapeHtml } from '../lib/format.js';
 
+const ENABLE_KEY = 'mes_chat_enabled';
+export function isChatbotEnabled() { return localStorage.getItem(ENABLE_KEY) !== '0'; }
+export function setChatbotEnabled(on) {
+  localStorage.setItem(ENABLE_KEY, on ? '1' : '0');
+  applyChatVisibility();
+}
+function applyChatVisibility() {
+  const root = document.getElementById('chatbot-root');
+  if (!root) return;
+  const on = isChatbotEnabled();
+  root.style.display = on ? '' : 'none';
+  if (!on) { // 꺼지면 패널 닫고 버튼만 남는 상태로 정리
+    root.querySelector('#chat-panel')?.setAttribute('hidden', '');
+    root.querySelector('#chat-fab')?.classList.remove('hidden');
+  }
+}
+
 export function mountChatbot() {
-  if (document.getElementById('chatbot-root')) return;
+  if (document.getElementById('chatbot-root')) { applyChatVisibility(); return; }
   const root = document.createElement('div');
   root.id = 'chatbot-root';
   root.innerHTML = `
@@ -81,6 +98,8 @@ export function mountChatbot() {
     addBot(res);
   }
   form.onsubmit = (e) => { e.preventDefault(); ask(input.value); };
+
+  applyChatVisibility(); // 저장된 on/off 상태 반영
 }
 
 export function unmountChatbot() { document.getElementById('chatbot-root')?.remove(); }
