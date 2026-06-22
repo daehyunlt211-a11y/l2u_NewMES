@@ -1,0 +1,217 @@
+// 데모 모드 초기 샘플 데이터 (Supabase 미연결 시 localStorage 시드)
+const today = new Date();
+const d = (offset = 0) => {
+  const x = new Date(today); x.setDate(x.getDate() + offset);
+  return x.toISOString().slice(0, 10);
+};
+// 날짜+시각 (RFID 이동 이력용)
+const dt = (offset = 0, hh = 9, mm = 0) => `${d(offset)}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+
+// 부적합 샘플 데이터 생성 (최근 30일, 다양한 공정/작업자/조치/불량유형)
+const NCR_SAMPLES = (() => {
+  const procs = ['CNC 황삭', 'CNC 정삭', '조립', '검사', '포장'];
+  const workers = ['박생산', '최품질', '정자재', '이영업'];
+  const actions = ['폐기', '재작업', '특채', '반품'];
+  const defects = ['치수불량', '외관불량', '가공불량', '조립불량', '도장불량'];
+  const items = [['P-1001', '브라켓 ASSY'], ['P-1002', '커버 하우징'], ['S-2001', '가공 브라켓']];
+  const causes = ['공구마모', '셋업오류', '소재불량', '작업자 실수', '설비 이상'];
+  const rows = [];
+  // 28일에 걸쳐 24건
+  const offsets = [-28, -26, -25, -23, -21, -20, -18, -17, -15, -14, -13, -11, -10, -9, -8, -7, -6, -5, -4, -3, -3, -2, -1, 0];
+  offsets.forEach((off, i) => {
+    const it = items[i % items.length];
+    const qty = ((i * 7) % 28) + 2;
+    rows.push({
+      ncr_no: `NC-S-${String(i + 1).padStart(3, '0')}`,
+      occur_date: d(off),
+      process: procs[i % procs.length],
+      item_code: it[0], item_name: it[1],
+      defect_type: defects[i % defects.length],
+      defect_qty: qty,
+      cause: causes[i % causes.length],
+      action: '조치 진행',
+      action_type: actions[i % actions.length],
+      worker: workers[i % workers.length],
+      status: i % 3 === 0 ? '처리중' : '완료',
+    });
+  });
+  return rows;
+})();
+
+export const SEED = {
+  departments: [
+    { code: 'D100', name: '경영지원팀', manager: '김대표', phone: '02-1000-1000', use_yn: true },
+    { code: 'D200', name: '영업팀', manager: '이영업', phone: '02-1000-2000', use_yn: true },
+    { code: 'D300', name: '생산팀', manager: '박생산', phone: '02-1000-3000', use_yn: true },
+    { code: 'D400', name: '품질팀', manager: '최품질', phone: '02-1000-4000', use_yn: true },
+    { code: 'D500', name: '자재팀', manager: '정자재', phone: '02-1000-5000', use_yn: true },
+  ],
+  users: [
+    { login_id: 'admin', password: 'admin', name: '관리자', department: '경영지원팀', position: '대표', role: 'admin', email: 'admin@linktours.co.kr', phone: '010-1111-1111', use_yn: true },
+    { login_id: 'sales01', password: '1234', name: '이영업', department: '영업팀', position: '팀장', role: 'manager', email: 'sales@linktours.co.kr', phone: '010-2222-2222', use_yn: true },
+    { login_id: 'prod01', password: '1234', name: '박생산', department: '생산팀', position: '팀장', role: 'manager', email: 'prod@linktours.co.kr', phone: '010-3333-3333', use_yn: true },
+    { login_id: 'qa01', password: '1234', name: '최품질', department: '품질팀', position: '주임', role: 'user', email: 'qa@linktours.co.kr', phone: '010-4444-4444', use_yn: true },
+    { login_id: 'mat01', password: '1234', name: '정자재', department: '자재팀', position: '주임', role: 'user', email: 'mat@linktours.co.kr', phone: '010-5555-5555', use_yn: true },
+  ],
+  partners: [
+    { code: 'C001', name: '(주)현대정밀', biz_type: '매출처', biz_no: '123-45-67890', ceo: '현대표', manager: '김구매', phone: '031-100-1000', email: 'buy@hd.com', address: '경기도 화성시', use_yn: true },
+    { code: 'C002', name: '대성머티리얼', biz_type: '매입처', biz_no: '234-56-78901', ceo: '대성표', manager: '이영업', phone: '032-200-2000', email: 'sell@ds.com', address: '인천시 남동구', use_yn: true },
+    { code: 'C003', name: '삼우테크', biz_type: '매출처', biz_no: '345-67-89012', ceo: '삼우표', manager: '박매니저', phone: '02-300-3000', email: 'info@sw.com', address: '서울시 금천구', use_yn: true },
+    { code: 'C004', name: '한국외주가공', biz_type: '외주처', biz_no: '456-78-90123', ceo: '한국표', manager: '정외주', phone: '041-400-4000', email: 'out@hk.com', address: '충남 천안시', use_yn: true },
+    { code: 'C005', name: '동양스틸', biz_type: '매입처', biz_no: '567-89-01234', ceo: '동양표', manager: '윤소재', phone: '051-500-5000', email: 'steel@dy.com', address: '부산시 강서구', use_yn: true },
+  ],
+  items: [
+    { code: 'P-1001', name: '브라켓 ASSY', item_type: '완제품', spec: '120x80x15', unit: 'EA', category: '기구', safety_stock: 100, unit_price: 12000, partner: '(주)현대정밀', use_yn: true },
+    { code: 'P-1002', name: '커버 하우징', item_type: '완제품', spec: 'Ø95 H40', unit: 'EA', category: '기구', safety_stock: 80, unit_price: 18500, partner: '삼우테크', use_yn: true },
+    { code: 'S-2001', name: '가공 브라켓', item_type: '반제품', spec: '120x80', unit: 'EA', category: '기구', safety_stock: 150, unit_price: 6000, partner: '', use_yn: true },
+    { code: 'M-3001', name: 'AL 6061 판재', item_type: '원자재', spec: 't15 1000x500', unit: 'EA', category: '소재', safety_stock: 50, unit_price: 32000, partner: '대성머티리얼', use_yn: true },
+    { code: 'M-3002', name: 'SUS304 봉재', item_type: '원자재', spec: 'Ø100 L1000', unit: 'EA', category: '소재', safety_stock: 30, unit_price: 45000, partner: '대성머티리얼', use_yn: true },
+    { code: 'M-4001', name: '볼트 M6x20', item_type: '부자재', spec: 'M6x20', unit: 'EA', category: '체결', safety_stock: 1000, unit_price: 80, partner: '대성머티리얼', use_yn: true },
+    { code: 'P-1003', name: '기어박스 ASSY', item_type: '완제품', spec: 'GB-200', unit: 'EA', category: '동력', safety_stock: 60, unit_price: 45000, partner: '(주)현대정밀', use_yn: true },
+    { code: 'P-1004', name: '모터 마운트', item_type: '완제품', spec: '200x150x20', unit: 'EA', category: '기구', safety_stock: 70, unit_price: 22000, partner: '삼우테크', use_yn: true },
+    { code: 'S-2002', name: '가공 하우징', item_type: '반제품', spec: 'Ø95', unit: 'EA', category: '기구', safety_stock: 120, unit_price: 9000, partner: '', use_yn: true },
+    { code: 'S-2003', name: '샤프트 가공품', item_type: '반제품', spec: 'Ø30 L200', unit: 'EA', category: '동력', safety_stock: 100, unit_price: 8000, partner: '', use_yn: true },
+    { code: 'M-3003', name: 'SCM440 환봉', item_type: '원자재', spec: 'Ø35 L1000', unit: 'EA', category: '소재', safety_stock: 40, unit_price: 38000, partner: '동양스틸', use_yn: true },
+    { code: 'M-3004', name: 'SS400 판재', item_type: '원자재', spec: 't20 1000x500', unit: 'EA', category: '소재', safety_stock: 45, unit_price: 28000, partner: '동양스틸', use_yn: true },
+    { code: 'M-4002', name: '너트 M6', item_type: '부자재', spec: 'M6', unit: 'EA', category: '체결', safety_stock: 2000, unit_price: 40, partner: '대성머티리얼', use_yn: true },
+    { code: 'M-4003', name: '평와셔 M6', item_type: '부자재', spec: 'M6', unit: 'EA', category: '체결', safety_stock: 3000, unit_price: 20, partner: '대성머티리얼', use_yn: true },
+    { code: 'M-4004', name: '오링 P20', item_type: '부자재', spec: 'P20', unit: 'EA', category: '실링', safety_stock: 1500, unit_price: 150, partner: '대성머티리얼', use_yn: true },
+    { code: 'M-4005', name: '베어링 6204', item_type: '부자재', spec: '6204ZZ', unit: 'EA', category: '구동', safety_stock: 500, unit_price: 3200, partner: '대성머티리얼', use_yn: true },
+    { code: 'M-5001', name: '절삭유', item_type: '부자재', spec: '20L', unit: 'EA', category: '소모품', safety_stock: 20, unit_price: 55000, partner: '대성머티리얼', use_yn: true },
+  ],
+  processes: [
+    { code: 'OP10', name: 'CNC 황삭', process_type: '가공', work_center: '가공1라인', std_time: 12, setup_time: 30, use_yn: true },
+    { code: 'OP20', name: 'CNC 정삭', process_type: '가공', work_center: '가공1라인', std_time: 18, setup_time: 25, use_yn: true },
+    { code: 'OP30', name: '조립', process_type: '조립', work_center: '조립라인', std_time: 8, setup_time: 10, use_yn: true },
+    { code: 'OP40', name: '검사', process_type: '검사', work_center: '검사실', std_time: 5, setup_time: 5, use_yn: true },
+    { code: 'OP50', name: '포장', process_type: '포장', work_center: '포장라인', std_time: 3, setup_time: 5, use_yn: true },
+  ],
+  item_processes: [
+    { item_code: 'P-1001', process_code: 'OP10', seq: 10, process_name: 'CNC 황삭', std_time: 12, equipment: 'CNC-01' },
+    { item_code: 'P-1001', process_code: 'OP20', seq: 20, process_name: 'CNC 정삭', std_time: 18, equipment: 'CNC-02' },
+    { item_code: 'P-1001', process_code: 'OP30', seq: 30, process_name: '조립', std_time: 8, equipment: 'ASSY-01' },
+    { item_code: 'P-1001', process_code: 'OP40', seq: 40, process_name: '검사', std_time: 5, equipment: 'CMM-01' },
+    { item_code: 'P-1002', process_code: 'OP10', seq: 10, process_name: 'CNC 황삭', std_time: 14, equipment: 'CNC-01' },
+    { item_code: 'P-1002', process_code: 'OP30', seq: 20, process_name: '조립', std_time: 10, equipment: 'ASSY-01' },
+    { item_code: 'S-2001', process_code: 'OP10', seq: 10, process_name: 'CNC 황삭', std_time: 12, equipment: 'CNC-01' },
+    { item_code: 'S-2001', process_code: 'OP20', seq: 20, process_name: 'CNC 정삭', std_time: 16, equipment: 'CNC-02' },
+  ],
+  process_equipments: [
+    { process_code: 'OP10', equipment_code: 'CNC-01', equipment_name: 'MCT 머시닝센터 1호기' },
+    { process_code: 'OP10', equipment_code: 'CNC-02', equipment_name: 'MCT 머시닝센터 2호기' },
+    { process_code: 'OP20', equipment_code: 'CNC-01', equipment_name: 'MCT 머시닝센터 1호기' },
+    { process_code: 'OP20', equipment_code: 'CNC-02', equipment_name: 'MCT 머시닝센터 2호기' },
+    { process_code: 'OP30', equipment_code: 'ASSY-01', equipment_name: '조립스테이션 1호' },
+    { process_code: 'OP40', equipment_code: 'CMM-01', equipment_name: '3차원측정기' },
+    { process_code: 'OP50', equipment_code: 'PKG-01', equipment_name: '자동포장기' },
+  ],
+  boms: [
+    // 완제품 → 반제품 → 원자재 다단계 예시
+    { item_code: 'P-1001', component_code: 'S-2001', component_name: '가공 브라켓', qty: 1, unit: 'EA' },
+    { item_code: 'P-1001', component_code: 'M-4001', component_name: '볼트 M6x20', qty: 4, unit: 'EA' },
+    { item_code: 'S-2001', component_code: 'M-3001', component_name: 'AL 6061 판재', qty: 1, unit: 'EA' },
+    { item_code: 'P-1002', component_code: 'M-3001', component_name: 'AL 6061 판재', qty: 1, unit: 'EA' },
+    { item_code: 'P-1002', component_code: 'M-4001', component_name: '볼트 M6x20', qty: 6, unit: 'EA' },
+    // 기어박스 ASSY (완제품) → 가공하우징·샤프트(반제품) + 베어링·너트(부자재)
+    { item_code: 'P-1003', component_code: 'S-2002', component_name: '가공 하우징', qty: 1, unit: 'EA' },
+    { item_code: 'P-1003', component_code: 'S-2003', component_name: '샤프트 가공품', qty: 2, unit: 'EA' },
+    { item_code: 'P-1003', component_code: 'M-4005', component_name: '베어링 6204', qty: 4, unit: 'EA' },
+    { item_code: 'P-1003', component_code: 'M-4002', component_name: '너트 M6', qty: 6, unit: 'EA' },
+    // 가공 하우징 (반제품) → SS400 판재(원자재) + 오링(부자재)
+    { item_code: 'S-2002', component_code: 'M-3004', component_name: 'SS400 판재', qty: 1, unit: 'EA' },
+    { item_code: 'S-2002', component_code: 'M-4004', component_name: '오링 P20', qty: 2, unit: 'EA' },
+    // 샤프트 가공품 (반제품) → SCM440 환봉(원자재)
+    { item_code: 'S-2003', component_code: 'M-3003', component_name: 'SCM440 환봉', qty: 1, unit: 'EA' },
+    // 모터 마운트 (완제품) → 가공하우징(반제품) + 볼트(부자재)
+    { item_code: 'P-1004', component_code: 'S-2002', component_name: '가공 하우징', qty: 1, unit: 'EA' },
+    { item_code: 'P-1004', component_code: 'M-4001', component_name: '볼트 M6x20', qty: 4, unit: 'EA' },
+  ],
+  tools: [
+    { code: 'T-001', name: '엔드밀 Ø10', tool_type: '절삭', spec: 'Ø10 4날', maker: 'YG-1', life_count: 500, process: 'CNC 황삭', unit: 'EA', safety_stock: 10, location: '공구실 A-1', use_yn: true },
+    { code: 'T-002', name: '드릴 Ø6.8', tool_type: '절삭', spec: 'Ø6.8 HSS', maker: 'OSG', life_count: 800, process: 'CNC 정삭', unit: 'EA', safety_stock: 15, location: '공구실 A-2', use_yn: true },
+    { code: 'T-003', name: '버니어캘리퍼스', tool_type: '측정', spec: '0-150mm', maker: 'Mitutoyo', life_count: 0, process: '검사', unit: 'EA', safety_stock: 5, location: '검사실', use_yn: true },
+    { code: 'T-004', name: '조립지그 A', tool_type: '지그', spec: 'P-1001용', maker: '자체제작', life_count: 0, process: '조립', unit: 'EA', safety_stock: 2, location: '조립라인', use_yn: true },
+    { code: 'T-005', name: '마이크로미터', tool_type: '측정', spec: '0-25mm', maker: 'Mitutoyo', life_count: 0, process: '검사', unit: 'EA', safety_stock: 5, location: '검사실', use_yn: true },
+  ],
+  equipments: [
+    { code: 'CNC-01', name: 'MCT 머시닝센터 1호기', equip_type: '가공기', model: 'DNM-500', maker: '두산', work_center: '가공1라인', install_date: '2021-03-15', status: '정상', use_yn: true },
+    { code: 'CNC-02', name: 'MCT 머시닝센터 2호기', equip_type: '가공기', model: 'DNM-500', maker: '두산', work_center: '가공1라인', install_date: '2021-03-15', status: '정상', use_yn: true },
+    { code: 'ASSY-01', name: '조립스테이션 1호', equip_type: '조립기', model: 'AS-100', maker: '자체', work_center: '조립라인', install_date: '2022-06-01', status: '정상', use_yn: true },
+    { code: 'CMM-01', name: '3차원측정기', equip_type: '검사기', model: 'CRYSTA-574', maker: 'Mitutoyo', work_center: '검사실', install_date: '2020-11-20', status: '점검', use_yn: true },
+    { code: 'PKG-01', name: '자동포장기', equip_type: '기타', model: 'PK-200', maker: '한성', work_center: '포장라인', install_date: '2023-02-10', status: '정상', use_yn: true },
+  ],
+  sales_orders: [
+    { order_no: 'SO-2406-001', order_date: d(-5), partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', spec: '120x80x15', unit: 'EA', order_qty: 500, unit_price: 12000, amount: 6000000, due_date: d(10), status: '생산중' },
+    { order_no: 'SO-2406-002', order_date: d(-3), partner: '삼우테크', item_code: 'P-1002', item_name: '커버 하우징', spec: 'Ø95 H40', unit: 'EA', order_qty: 300, unit_price: 18500, amount: 5550000, due_date: d(14), status: '접수' },
+    { order_no: 'SO-2406-003', order_date: d(-1), partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', spec: '120x80x15', unit: 'EA', order_qty: 200, unit_price: 12000, amount: 2400000, due_date: d(20), status: '접수' },
+  ],
+  deliveries: [
+    { delivery_no: 'DL-2406-001', delivery_date: d(-2), order_no: 'SO-2406-001', partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', delivery_qty: 200, unit_price: 12000, amount: 2400000, status: '납품완료' },
+  ],
+  production_plans: [
+    { plan_no: 'PP-2406-001', plan_date: d(-4), order_no: 'SO-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', plan_qty: 500, start_date: d(-3), end_date: d(7), line: '가공1라인', status: '진행' },
+    { plan_no: 'PP-2406-002', plan_date: d(-2), order_no: 'SO-2406-002', item_code: 'P-1002', item_name: '커버 하우징', plan_qty: 300, start_date: d(1), end_date: d(12), line: '가공1라인', status: '계획' },
+  ],
+  work_orders: [
+    { wo_no: 'WO-2406-001', wo_date: d(-3), plan_no: 'PP-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', order_qty: 500, process: 'CNC 황삭', equipment: 'CNC-01', worker: '박생산', line: '가공1라인', start_date: d(-3), due_date: d(2), status: '작업중' },
+    { wo_no: 'WO-2406-002', wo_date: d(-3), plan_no: 'PP-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', order_qty: 500, process: 'CNC 정삭', equipment: 'CNC-02', worker: '박생산', line: '가공1라인', start_date: d(-1), due_date: d(4), status: '대기' },
+  ],
+  production_results: [
+    { result_no: 'PR-2406-001', result_date: d(-2), wo_no: 'WO-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', process: 'CNC 황삭', equipment: 'CNC-01', worker: '박생산', good_qty: 240, defect_qty: 10, work_time: 480, status: '완료' },
+    { result_no: 'PR-2406-002', result_date: d(-1), wo_no: 'WO-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', process: 'CNC 황삭', equipment: 'CNC-01', worker: '박생산', good_qty: 250, defect_qty: 5, work_time: 460, status: '완료' },
+  ],
+  material_inbounds: [
+    { inbound_no: 'MI-2406-001', inbound_date: d(-6), partner: '대성머티리얼', item_code: 'M-3001', item_name: 'AL 6061 판재', spec: 't15 1000x500', unit: 'EA', inbound_qty: 100, unit_price: 32000, amount: 3200000, warehouse: '자재창고1', lot_no: 'LOT-A001', status: '입고완료' },
+    { inbound_no: 'MI-2406-002', inbound_date: d(-4), partner: '대성머티리얼', item_code: 'M-4001', item_name: '볼트 M6x20', spec: 'M6x20', unit: 'EA', inbound_qty: 5000, unit_price: 80, amount: 400000, warehouse: '자재창고1', lot_no: 'LOT-B001', status: '입고완료' },
+  ],
+  material_outbounds: [
+    { outbound_no: 'MO-2406-001', outbound_date: d(-3), item_code: 'M-3001', item_name: 'AL 6061 판재', unit: 'EA', outbound_qty: 40, wo_no: 'WO-2406-001', warehouse: '자재창고1', purpose: '생산투입', worker: '박생산' },
+    { outbound_no: 'MO-2406-002', outbound_date: d(-2), item_code: 'M-4001', item_name: '볼트 M6x20', unit: 'EA', outbound_qty: 2000, wo_no: 'WO-2406-001', warehouse: '자재창고1', purpose: '생산투입', worker: '박생산' },
+  ],
+  tool_movements: [
+    { move_no: 'TM-2406-001', move_date: d(-6), move_type: '입고', tool_code: 'T-001', tool_name: '엔드밀 Ø10', qty: 20, worker: '정자재', location: '공구실 A-1' },
+    { move_no: 'TM-2406-002', move_date: d(-3), move_type: '출고', tool_code: 'T-001', tool_name: '엔드밀 Ø10', qty: 4, worker: '박생산', equipment: 'CNC-01' },
+    { move_no: 'TM-2406-003', move_date: d(-5), move_type: '입고', tool_code: 'T-002', tool_name: '드릴 Ø6.8', qty: 30, worker: '정자재', location: '공구실 A-2' },
+  ],
+  tool_disposals: [
+    { disposal_no: 'TD-2406-001', disposal_date: d(-1), tool_code: 'T-001', tool_name: '엔드밀 Ø10', qty: 2, reason: '수명초과', worker: '박생산' },
+  ],
+  inspection_standards: [
+    { std_no: 'IS-001', item_code: 'P-1001', item_name: '브라켓 ASSY', inspect_type: '출하검사', eval_method: '정량적', inspect_item: '전장', spec_value: '120', tolerance: '0.1', method: '버니어캘리퍼스', equipment: '버니어캘리퍼스', use_yn: true },
+    { std_no: 'IS-002', item_code: 'P-1001', item_name: '브라켓 ASSY', inspect_type: '출하검사', eval_method: '정성적', inspect_item: '외관/도장', spec_value: '스크래치·이물 없음', tolerance: '', method: '육안', equipment: '', use_yn: true },
+    { std_no: 'IS-003', item_code: 'M-3001', item_name: 'AL 6061 판재', inspect_type: '수입검사', eval_method: '정량적', inspect_item: '두께', spec_value: '15', tolerance: '0.05', method: '마이크로미터', equipment: '마이크로미터', use_yn: true },
+    { std_no: 'IS-004', item_code: 'M-3001', item_name: 'AL 6061 판재', inspect_type: '수입검사', eval_method: '정성적', inspect_item: '표면상태', spec_value: '흠집 없음', tolerance: '', method: '육안', equipment: '', use_yn: true },
+  ],
+  incoming_inspections: [
+    { inspect_no: 'II-2406-001', inspect_date: d(-6), inbound_no: 'MI-2406-001', partner: '대성머티리얼', item_code: 'M-3001', item_name: 'AL 6061 판재', lot_no: 'LOT-A001', inspect_qty: 100, good_qty: 98, defect_qty: 2, inspector: '최품질', result: '합격' },
+  ],
+  nonconformances: [
+    { ncr_no: 'NC-2406-001', occur_date: d(-2), process: 'CNC 황삭', item_code: 'P-1001', item_name: '브라켓 ASSY', defect_type: '치수불량', defect_qty: 10, cause: '공구마모', action: '공구교체 후 재작업', action_type: '재작업', worker: '박생산', status: '완료' },
+    ...NCR_SAMPLES,
+  ],
+  shipping_inspections: [
+    { inspect_no: 'SI-2406-001', inspect_date: d(-2), order_no: 'SO-2406-001', partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', inspect_qty: 200, good_qty: 200, defect_qty: 0, inspector: '최품질', result: '합격' },
+  ],
+  // RFID 태그 (팔레트·대차·금형·공구·검사구·박스 등 추적 대상)
+  rfid_tags: [
+    { tag_uid: 'E280-1170-0001', tag_type: '팔레트', label: '출하용 팔레트 #1', ref_code: 'P-1001', lot_no: 'LOT-WIP-001', location: '출하장', use_count: 0, life_count: 0, status: '활성', assigned_to: 'WO-2406-001', last_seen: d(0) },
+    { tag_uid: 'E280-1170-0002', tag_type: '팔레트', label: '공정간 팔레트 #2', ref_code: 'P-1002', lot_no: 'LOT-WIP-002', location: '가공1라인', use_count: 0, life_count: 0, status: '활성', assigned_to: '', last_seen: d(-1) },
+    { tag_uid: 'E280-1170-0010', tag_type: '대차', label: '가공라인 대차 A', ref_code: 'WO-2406-001', lot_no: 'LOT-WIP-001', location: '검사장', use_count: 0, life_count: 0, status: '활성', assigned_to: '박생산', last_seen: d(0) },
+    { tag_uid: 'E280-1170-0020', tag_type: '금형', label: '브라켓 금형 M-01', ref_code: 'CNC-01', lot_no: '', location: '가공1라인', use_count: 18500, life_count: 50000, status: '활성', assigned_to: 'CNC-01', last_seen: d(-1) },
+    { tag_uid: 'E280-1170-0021', tag_type: '공구', label: '엔드밀 Ø10 세트', ref_code: 'T-001', lot_no: '', location: '공구실 A-1', use_count: 420, life_count: 500, status: '활성', assigned_to: '', last_seen: d(-2) },
+    { tag_uid: 'E280-1170-0030', tag_type: '검사구', label: '버니어캘리퍼스(교정대상)', ref_code: 'T-003', lot_no: '', location: '검사실', use_count: 0, life_count: 0, status: '활성', assigned_to: '최품질', last_seen: d(-3) },
+    { tag_uid: 'E280-1170-0040', tag_type: '박스', label: '자재박스 AL판재', ref_code: 'M-3001', lot_no: 'LOT-A001', location: '자재창고1', use_count: 0, life_count: 0, status: '활성', assigned_to: '', last_seen: d(-6) },
+    { tag_uid: 'E280-1170-0099', tag_type: '대차', label: '폐 대차(분실신고)', ref_code: '', lot_no: '', location: '-', use_count: 0, life_count: 0, status: '분실', assigned_to: '', last_seen: d(-20) },
+  ],
+  // RFID 이동 이력 — LOT-WIP-001 의 공정→검사→포장→출하 여정 + 자재입고
+  rfid_events: [
+    { event_no: 'RF-2406-001', event_time: dt(-6, 9, 10), tag_uid: 'E280-1170-0040', tag_type: '박스', gate: '창고입구', event_type: '입고', lot_no: 'LOT-A001', ref_code: 'M-3001', reader: 'RDR-IN01', location: '자재창고1' },
+    { event_no: 'RF-2406-002', event_time: dt(-6, 9, 25), tag_uid: 'E280-1170-0040', tag_type: '박스', gate: '적치랙', event_type: '적치', lot_no: 'LOT-A001', ref_code: 'M-3001', reader: 'RDR-RACK', location: 'A-03 랙' },
+    { event_no: 'RF-2406-010', event_time: dt(-3, 8, 5), tag_uid: 'E280-1170-0010', tag_type: '대차', gate: '공정입구', event_type: '공정이동', lot_no: 'LOT-WIP-001', ref_code: 'WO-2406-001', reader: 'RDR-OP10', location: '가공1라인' },
+    { event_no: 'RF-2406-011', event_time: dt(-2, 13, 40), tag_uid: 'E280-1170-0010', tag_type: '대차', gate: '공정입구', event_type: '공정이동', lot_no: 'LOT-WIP-001', ref_code: 'WO-2406-001', reader: 'RDR-OP20', location: '가공1라인' },
+    { event_no: 'RF-2406-012', event_time: dt(-1, 10, 15), tag_uid: 'E280-1170-0010', tag_type: '대차', gate: '검사장', event_type: '검사이동', lot_no: 'LOT-WIP-001', ref_code: 'WO-2406-001', reader: 'RDR-QC01', location: '검사장' },
+    { event_no: 'RF-2406-013', event_time: dt(0, 9, 30), tag_uid: 'E280-1170-0001', tag_type: '팔레트', gate: '포장장', event_type: '포장이동', lot_no: 'LOT-WIP-001', ref_code: 'P-1001', reader: 'RDR-PKG', location: '포장라인' },
+    { event_no: 'RF-2406-014', event_time: dt(0, 14, 50), tag_uid: 'E280-1170-0001', tag_type: '팔레트', gate: '출하장', event_type: '출하이동', lot_no: 'LOT-WIP-001', ref_code: 'P-1001', reader: 'RDR-SHIP', location: '출하장' },
+    { event_no: 'RF-2406-020', event_time: dt(-1, 8, 30), tag_uid: 'E280-1170-0002', tag_type: '팔레트', gate: '공정입구', event_type: '공정이동', lot_no: 'LOT-WIP-002', ref_code: 'P-1002', reader: 'RDR-OP10', location: '가공1라인' },
+  ],
+};
