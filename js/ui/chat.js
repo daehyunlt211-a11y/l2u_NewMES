@@ -8,7 +8,7 @@ import { escapeHtml } from '../lib/format.js';
 
 let _toggle = null; // 외부(상단바 버튼)에서 채팅 창을 열고 닫기 위한 핸들
 export function toggleChatbot() { _toggle?.(); }
-export function isChatPanelOpen() { const p = document.getElementById('chat-panel'); return !!p && !p.hidden; }
+export function isChatPanelOpen() { const p = document.getElementById('chat-panel'); return !!p && p.classList.contains('is-open'); }
 
 export function mountChatbot() {
   if (document.getElementById('chatbot-root')) return;
@@ -16,7 +16,7 @@ export function mountChatbot() {
   root.id = 'chatbot-root';
   root.innerHTML = `
     <button class="chat-fab" id="chat-fab" title="AI 비서 열기">${icon('brain', 24)}</button>
-    <div class="chat-panel" id="chat-panel" hidden>
+    <div class="chat-panel" id="chat-panel">
       <div class="chat-head">
         <span class="chat-head__ico">${icon('brain', 18)}</span>
         <div><b>AI 데이터 비서</b><div class="muted" style="font-size:11px">규칙기반 · 현장 데이터 조회</div></div>
@@ -41,8 +41,8 @@ export function mountChatbot() {
   let greeted = false;
 
   function open() {
-    panel.hidden = false;          // 채팅 입력 창 표시
-    fab.classList.add('hidden');   // 플로팅 버튼 숨김
+    panel.classList.add('is-open');  // 채팅 입력 창 표시
+    fab.classList.add('hidden');     // 플로팅 버튼 숨김
     if (!greeted) {
       greeted = true;
       addBot({ html: '안녕하세요! 무엇을 도와드릴까요? 아래 추천 질문을 누르거나 자유롭게 입력하세요. 🤖', suggestions: CHAT_SUGGESTIONS });
@@ -50,10 +50,10 @@ export function mountChatbot() {
     setTimeout(() => input.focus(), 50);
   }
   function close() {
-    panel.hidden = true;           // 채팅 입력 창 숨김
-    fab.classList.remove('hidden');// 플로팅 버튼 복귀
+    panel.classList.remove('is-open'); // 채팅 입력 창 숨김
+    fab.classList.remove('hidden');    // 플로팅 버튼 복귀
   }
-  function toggle() { panel.hidden ? open() : close(); }
+  function toggle() { panel.classList.contains('is-open') ? close() : open(); }
 
   _toggle = toggle;                // 상단바 버튼이 호출
   fab.onclick = open;
