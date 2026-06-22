@@ -81,6 +81,7 @@ export function createCrudPage(cfg) {
     if (cfg.dateField) {
       toolbarHtml += `
         <div class="date-range" title="${escapeHtml(cfg.dateField.label || '날짜')} 기간 조회">
+          <span class="date-range__label">${icon('calendar', 14)} ${escapeHtml(cfg.dateField.label || '날짜')} 기준</span>
           <select class="select" data-date-preset style="width:auto;min-width:96px">
             <option value="">기간 전체</option>
             <option value="today">오늘</option>

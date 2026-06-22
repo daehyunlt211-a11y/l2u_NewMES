@@ -557,3 +557,11 @@ table.grid td.center, table.grid th.center { text-align: center; }
   font-size: 13px; color-scheme: light dark;
 }
 [data-theme="dark"] .input--date::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+
+/* 날짜 기간 조회 — 기준 날짜 라벨 */
+.date-range__label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  padding: 0 4px; white-space: nowrap;
+}
+.date-range__label svg { color: var(--brand); }
