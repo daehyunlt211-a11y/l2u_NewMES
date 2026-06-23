@@ -165,10 +165,11 @@ insert into production_results (result_no, result_date, wo_no, item_code, item_n
 on conflict (result_no) do nothing;
 
 -- ---------- 4-1 자재입고 ----------
-insert into material_inbounds (inbound_no, inbound_date, partner, item_code, item_name, spec, unit, inbound_qty, unit_price, amount, warehouse, lot_no, status) values
-  ('MI-2406-001', current_date-6, '대성머티리얼','M-3001','AL 6061 판재','t15 1000x500','EA',100,32000,3200000,'자재창고1','LOT-A001','입고완료'),
-  ('MI-2406-002', current_date-4, '동양스틸','M-4001','볼트 M6x20','M6x20','EA',5000,80,400000,'자재창고1','LOT-B001','입고완료'),
-  ('MI-2406-003', current_date-2, '대성머티리얼','M-3001','AL 6061 판재','t15 1000x500','EA',60,32000,1920000,'자재창고1','LOT-A002','입고완료')
+insert into material_inbounds (inbound_no, inbound_date, partner, item_code, item_name, spec, unit, inbound_qty, actual_qty, unit_price, amount, warehouse, lot_no, status) values
+  ('MI-2406-001', current_date-6, '대성머티리얼','M-3001','AL 6061 판재','t15 1000x500','EA',100,100,32000,3200000,'자재창고1','LOT-A001','입고완료'),
+  ('MI-2406-002', current_date-4, '동양스틸','M-4001','볼트 M6x20','M6x20','EA',5000,5000,80,400000,'자재창고1','LOT-B001','입고완료'),
+  ('MI-2406-003', current_date-2, '대성머티리얼','M-3001','AL 6061 판재','t15 1000x500','EA',60,58,32000,1920000,'자재창고1','LOT-A002','입고완료'),
+  ('MI-2406-004', current_date-1, '대성머티리얼','M-3002','SUS304 봉재','Ø100 L1000','EA',30,null,45000,1350000,'자재창고1','LOT-C001','입고대기')
 on conflict (inbound_no) do nothing;
 
 -- ---------- 4-2 자재반출 ----------

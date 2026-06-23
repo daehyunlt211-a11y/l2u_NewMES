@@ -170,8 +170,10 @@ export const SEED = {
     { result_no: 'PR-2406-002', result_date: d(-1), wo_no: 'WO-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', process: 'CNC 황삭', equipment: 'CNC-01', worker: '박생산', good_qty: 250, defect_qty: 5, work_time: 460, status: '완료' },
   ],
   material_inbounds: [
-    { inbound_no: 'MI-2406-001', inbound_date: d(-6), partner: '대성머티리얼', item_code: 'M-3001', item_name: 'AL 6061 판재', spec: 't15 1000x500', unit: 'EA', inbound_qty: 100, unit_price: 32000, amount: 3200000, warehouse: '자재창고1', lot_no: 'LOT-A001', status: '입고완료' },
-    { inbound_no: 'MI-2406-002', inbound_date: d(-4), partner: '대성머티리얼', item_code: 'M-4001', item_name: '볼트 M6x20', spec: 'M6x20', unit: 'EA', inbound_qty: 5000, unit_price: 80, amount: 400000, warehouse: '자재창고1', lot_no: 'LOT-B001', status: '입고완료' },
+    { inbound_no: 'MI-2406-001', inbound_date: d(-6), partner: '대성머티리얼', item_code: 'M-3001', item_name: 'AL 6061 판재', spec: 't15 1000x500', unit: 'EA', inbound_qty: 100, actual_qty: 100, unit_price: 32000, amount: 3200000, warehouse: '자재창고1', lot_no: 'LOT-A001', status: '입고완료' },
+    { inbound_no: 'MI-2406-002', inbound_date: d(-4), partner: '대성머티리얼', item_code: 'M-4001', item_name: '볼트 M6x20', spec: 'M6x20', unit: 'EA', inbound_qty: 5000, actual_qty: 5000, unit_price: 80, amount: 400000, warehouse: '자재창고1', lot_no: 'LOT-B001', status: '입고완료' },
+    { inbound_no: 'MI-2406-003', inbound_date: d(-3), partner: '대성머티리얼', item_code: 'M-3001', item_name: 'AL 6061 판재', spec: 't15 1000x500', unit: 'EA', inbound_qty: 50, actual_qty: 48, unit_price: 32000, amount: 1600000, warehouse: '자재창고1', lot_no: 'LOT-A002', status: '입고완료' },
+    { inbound_no: 'MI-2406-004', inbound_date: d(-1), partner: '대성머티리얼', item_code: 'M-3002', item_name: 'SUS304 봉재', spec: 'Ø100 L1000', unit: 'EA', inbound_qty: 30, unit_price: 45000, amount: 1350000, warehouse: '자재창고1', lot_no: 'LOT-C001', status: '입고대기' },
   ],
   material_outbounds: [
     { outbound_no: 'MO-2406-001', outbound_date: d(-3), item_code: 'M-3001', item_name: 'AL 6061 판재', unit: 'EA', outbound_qty: 40, wo_no: 'WO-2406-001', warehouse: '자재창고1', purpose: '생산투입', worker: '박생산' },

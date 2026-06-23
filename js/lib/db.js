@@ -75,7 +75,11 @@ function computeView(name) {
   if (name === 'material_stocks') {
     const ins = lsGet('material_inbounds'), outs = lsGet('material_outbounds');
     const map = {};
-    for (const r of ins) { const k = r.item_code; (map[k] ??= { item_code: k, item_name: r.item_name, in_qty: 0, out_qty: 0 }); map[k].in_qty += +r.inbound_qty || 0; map[k].item_name = r.item_name || map[k].item_name; }
+    for (const r of ins) {
+      if (r.status && r.status !== '입고완료') continue; // 입고완료만 재고 반영
+      const qty = (r.actual_qty != null && r.actual_qty !== '') ? +r.actual_qty : +r.inbound_qty; // 실 입고수량 우선
+      const k = r.item_code; (map[k] ??= { item_code: k, item_name: r.item_name, in_qty: 0, out_qty: 0 }); map[k].in_qty += qty || 0; map[k].item_name = r.item_name || map[k].item_name;
+    }
     for (const r of outs) { const k = r.item_code; (map[k] ??= { item_code: k, item_name: r.item_name, in_qty: 0, out_qty: 0 }); map[k].out_qty += +r.outbound_qty || 0; map[k].item_name = r.item_name || map[k].item_name; }
     return Object.values(map).map(r => ({ ...r, id: r.item_code, stock_qty: r.in_qty - r.out_qty }));
   }

@@ -71,7 +71,7 @@ const STATUS_MAP = {
   '접수': 'info', '생산중': 'warning', '완료': 'success', '취소': 'neutral',
   '계획': 'info', '진행': 'warning', '보류': 'neutral',
   '대기': 'neutral', '작업중': 'warning', '중단': 'danger',
-  '입고예정': 'info', '입고완료': 'success', '출고예정': 'info', '납품완료': 'success',
+  '입고예정': 'info', '입고대기': 'neutral', '입고완료': 'success', '출고예정': 'info', '납품대기': 'neutral', '납품완료': 'success',
   '합격': 'success', '불합격': 'danger', '조건부합격': 'warning',
   'OK': 'success', 'NG': 'danger',
   '정량적': 'neutral', '정성적': 'info',

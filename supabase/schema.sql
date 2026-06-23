@@ -341,11 +341,12 @@ create table if not exists material_inbounds (
   spec          text,
   unit          text default 'EA',
   inbound_qty   numeric default 0,
+  actual_qty    numeric,                         -- 실 입고수량 (입고완료 시 입력)
   unit_price    numeric default 0,
   amount        numeric default 0,
   warehouse     text,
   lot_no        text,
-  status        text default '입고예정',        -- 입고예정 / 입고완료(화면 버튼으로 처리)
+  status        text default '입고대기',        -- 입고대기 / 입고완료(화면 선택+버튼으로 처리)
   remark        text,
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
@@ -361,6 +362,7 @@ create table if not exists material_outbounds (
   unit          text default 'EA',
   outbound_qty  numeric default 0,
   wo_no         text,                           -- 작업지시번호
+  inbound_no    text,                           -- 반품 시 원 입고번호 참조
   warehouse     text,
   purpose       text,                           -- 생산투입 / 외주 / 반품
   worker        text,
@@ -371,15 +373,21 @@ create table if not exists material_outbounds (
 
 -- 4-3 자재현황 (재고: 입고-반출 집계 뷰)
 create or replace view material_stocks as
+with ins as (
+  select item_code, max(item_name) as item_name,
+    sum(case when status = '입고완료' then coalesce(nullif(actual_qty, 0), inbound_qty) else 0 end) as in_qty
+  from material_inbounds group by item_code
+), outs as (
+  select item_code, max(item_name) as item_name, sum(outbound_qty) as out_qty
+  from material_outbounds group by item_code
+)
 select
-  coalesce(i.item_code, o.item_code)                          as item_code,
-  max(coalesce(i.item_name, o.item_name))                     as item_name,
-  coalesce(sum(i.inbound_qty), 0)                             as in_qty,
-  coalesce(sum(o.outbound_qty), 0)                            as out_qty,
-  coalesce(sum(i.inbound_qty), 0) - coalesce(sum(o.outbound_qty), 0) as stock_qty
-from material_inbounds i
-full outer join material_outbounds o on i.item_code = o.item_code
-group by coalesce(i.item_code, o.item_code);
+  coalesce(i.item_code, o.item_code)                 as item_code,
+  coalesce(i.item_name, o.item_name)                 as item_name,
+  coalesce(i.in_qty, 0)                              as in_qty,
+  coalesce(o.out_qty, 0)                             as out_qty,
+  coalesce(i.in_qty, 0) - coalesce(o.out_qty, 0)     as stock_qty
+from ins i full outer join outs o on i.item_code = o.item_code;
 
 -- =====================================================================
 -- 5. 공구관리 (운영)
