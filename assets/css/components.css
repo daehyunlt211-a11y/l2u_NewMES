@@ -565,3 +565,31 @@ table.grid td.center, table.grid th.center { text-align: center; }
   padding: 0 4px; white-space: nowrap;
 }
 .date-range__label svg { color: var(--brand); }
+
+/* ===================== 탭 네비게이션 ===================== */
+.tabbar {
+  display: none; align-items: flex-end; gap: 3px;
+  padding: 6px 16px 0; overflow-x: auto;
+  background: var(--surface-glass);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: var(--topbar-h); z-index: 25;
+  scrollbar-width: thin;
+}
+.tabbar.show { display: flex; }
+.tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 10px 8px 13px; border-radius: 9px 9px 0 0;
+  font-size: 13px; color: var(--text-2); white-space: nowrap; cursor: pointer;
+  border: 1px solid transparent; border-bottom: none; transition: background var(--transition), color var(--transition);
+}
+.tab:hover { background: var(--surface-2); color: var(--text); }
+.tab.active { background: var(--surface); color: var(--text); font-weight: 700; border-color: var(--border); box-shadow: 0 -2px 0 var(--brand) inset; }
+.tab__label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.tab__close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: none; border-radius: 5px;
+  background: transparent; color: var(--text-3); cursor: pointer; flex: 0 0 auto;
+}
+.tab__close:hover { background: var(--danger-bg, var(--border)); color: var(--danger, var(--text)); }

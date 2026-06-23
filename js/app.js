@@ -64,6 +64,7 @@ function renderShell() {
           <div class="avatar" id="user-avatar" title="${escapeHtml(me ? me.name : '')}">${initial(me?.name)}</div>
         </div>
       </header>
+      <div class="tabbar" id="tabbar"></div>
       <main class="content" id="content"></main>
     </div>
     <div class="scrim" id="scrim"></div>`;
@@ -128,6 +129,44 @@ function renderNav() {
 }
 const openGroups = new Set();
 
+// ---------- 탭 (메뉴 클릭 시 탭 생성/전환/닫기) ----------
+let tabs = [];
+try { tabs = JSON.parse(localStorage.getItem('mes_tabs') || '[]'); } catch { tabs = []; }
+const saveTabs = () => localStorage.setItem('mes_tabs', JSON.stringify(tabs));
+
+function ensureTab(path, title) {
+  if (!tabs.find(t => t.path === path)) { tabs.push({ path, title }); saveTabs(); }
+}
+function renderTabs(activePath) {
+  const bar = document.getElementById('tabbar');
+  if (!bar) return;
+  if (!tabs.length) { bar.innerHTML = ''; bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  bar.innerHTML = tabs.map(t => `
+    <div class="tab ${t.path === activePath ? 'active' : ''}" data-tab="${escapeHtml(t.path)}" title="${escapeHtml(t.title)}">
+      <span class="tab__label">${escapeHtml(t.title)}</span>
+      <button class="tab__close" data-close-tab="${escapeHtml(t.path)}" title="탭 닫기">${icon('x', 12)}</button>
+    </div>`).join('');
+  bar.querySelectorAll('[data-tab]').forEach(el => el.onclick = (e) => {
+    if (e.target.closest('[data-close-tab]')) return;
+    if (el.dataset.tab !== currentPath()) location.hash = el.dataset.tab;
+  });
+  bar.querySelectorAll('[data-close-tab]').forEach(b => b.onclick = (e) => { e.stopPropagation(); closeTab(b.dataset.closeTab); });
+}
+function closeTab(path) {
+  const idx = tabs.findIndex(t => t.path === path);
+  if (idx < 0) return;
+  const wasActive = currentPath() === path;
+  tabs.splice(idx, 1); saveTabs();
+  if (wasActive) {
+    const next = tabs[idx] || tabs[idx - 1] || null;
+    location.hash = next ? next.path : DEFAULT_ROUTE;
+    if (!next && currentPath() === DEFAULT_ROUTE) route(); // 이미 대시보드면 hashchange 안 일어나므로 강제 갱신
+  } else {
+    renderTabs(currentPath());
+  }
+}
+
 // ---------- 라우터 ----------
 function currentPath() {
   const h = location.hash.replace(/^#/, '').split('?')[0];
@@ -149,6 +188,10 @@ async function route() {
   // breadcrumb
   const bc = document.getElementById('breadcrumb');
   if (r) bc.innerHTML = `<span>${escapeHtml(r.group)}</span><span class="sep">${icon('chevronRight', 14)}</span><b>${escapeHtml(r.title)}</b>`;
+
+  // 탭 생성/활성화
+  if (r) ensureTab(path, r.title);
+  renderTabs(path);
 
   // active nav 갱신
   renderNav();
