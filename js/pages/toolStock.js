@@ -40,12 +40,15 @@ export async function toolStock(root) {
     const units = [];
     for (const m of moves) {
       const qty = +m.qty || 0;
+      // 레거시(입고건 단위) 사용은 단위 LOT에 FIFO 배분, 단위 LOT 직접 사용은 그대로 반영
       let pool = state.usages.filter(u => u.lot_no === m.move_no).reduce((s, u) => s + (+u.use_qty || 0), 0);
       for (let i = 1; i <= qty; i++) {
         const lot_no = `${m.move_no}-${String(i).padStart(2, '0')}`;
         if (life1 > 0) {
-          const used = Math.min(life1, Math.max(0, pool));
-          pool -= used;
+          const direct = state.usages.filter(u => u.lot_no === lot_no).reduce((s, u) => s + (+u.use_qty || 0), 0);
+          const take = Math.min(Math.max(0, life1 - direct), Math.max(0, pool));
+          pool -= take;
+          const used = direct + take;
           units.push({ lot_no, move_no: m.move_no, move_date: m.move_date, seq: i, qty: 1, life1, lifeTotal: life1, used, remain: Math.max(0, life1 - used) });
         } else {
           units.push({ lot_no, move_no: m.move_no, move_date: m.move_date, seq: i, qty: 1, life1: 0, lifeTotal: 0, used: 0, remain: null });

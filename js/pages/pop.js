@@ -158,13 +158,27 @@ export async function popDetail(root, params = {}) {
   try { toolLots = (await db.all('tool_movements', {})).filter(m => m.move_type === '입고'); } catch { toolLots = []; }
   try { toolUsages = await db.all('tool_usages', {}); } catch { toolUsages = []; }
   const toolsForProcess = (procName) => allTools.filter(t => t.process && t.process === procName);
+  // 입고수량을 1개 단위 LOT(입고번호-01,-02…)으로 분해해 반환 (재고관리와 동일 규칙)
   function lotsForTool(code) {
     const t = allTools.find(x => x.code === code) || {}; const life1 = +t.life_count || 0;
-    return toolLots.filter(m => m.tool_code === code).map(m => {
-      const used = toolUsages.filter(u => u.lot_no === m.move_no).reduce((s, u) => s + (+u.use_qty || 0), 0);
-      const remain = life1 > 0 ? Math.max(0, life1 * (+m.qty || 0) - used) : null;
-      return { move_no: m.move_no, move_date: m.move_date, remain };
-    });
+    const moves = toolLots.filter(m => m.tool_code === code)
+      .sort((a, b) => String(a.move_date || '').localeCompare(String(b.move_date || '')));
+    const units = [];
+    for (const m of moves) {
+      const qty = +m.qty || 0;
+      let pool = toolUsages.filter(u => u.lot_no === m.move_no).reduce((s, u) => s + (+u.use_qty || 0), 0); // 레거시(입고건 단위) 사용
+      for (let i = 1; i <= qty; i++) {
+        const lot_no = `${m.move_no}-${String(i).padStart(2, '0')}`;
+        if (life1 > 0) {
+          const direct = toolUsages.filter(u => u.lot_no === lot_no).reduce((s, u) => s + (+u.use_qty || 0), 0);
+          const take = Math.min(Math.max(0, life1 - direct), Math.max(0, pool)); pool -= take;
+          units.push({ lot_no, move_no: m.move_no, move_date: m.move_date, remain: Math.max(0, life1 - (direct + take)) });
+        } else {
+          units.push({ lot_no, move_no: m.move_no, move_date: m.move_date, remain: null });
+        }
+      }
+    }
+    return units;
   }
 
   render();
@@ -306,7 +320,10 @@ export async function popDetail(root, params = {}) {
       const lots = lotsForTool(e.target.value);
       const sel = body.querySelector('[name="lot"]');
       sel.innerHTML = lots.length
-        ? `<option value="">선택</option>` + lots.map(l => `<option value="${escapeHtml(l.move_no)}">${escapeHtml(l.move_no)} (${(l.move_date || '').slice(0, 10)}) · 남은 ${l.remain === null ? '∞' : num(l.remain)}</option>`).join('')
+        ? `<option value="">선택 (총 ${lots.length}개 LOT)</option>` + lots.map(l => {
+          const soldOut = l.remain !== null && l.remain <= 0;
+          return `<option value="${escapeHtml(l.lot_no)}" ${soldOut ? 'disabled' : ''}>${escapeHtml(l.lot_no)} (${(l.move_date || '').slice(0, 10)}) · 남은 ${l.remain === null ? '∞' : num(l.remain)}${soldOut ? ' · 소진' : ''}</option>`;
+        }).join('')
         : `<option value="">입고 LOT 없음 — 입·출고관리에서 입고 등록 필요</option>`;
     });
     openModal({
