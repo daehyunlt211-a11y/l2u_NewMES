@@ -313,11 +313,178 @@ export const incomingInspection = createInspectionPage({
   extraKey: 'lot_no', extraLabel: 'LOT',
 });
 
-// 출하검사
-export const shippingInspection = createInspectionPage({
-  table: 'shipping_inspections', kind: '출하검사', title: '출하검사', subtitle: '납품 전 완제품을 검사기준에 따라 검사합니다.',
-  docPrefix: 'SI', sourceTable: 'sales_orders', sourceKey: 'order_no', sourceLabel: '수주 선택',
-  sourceText: (s) => `${s.order_no} · ${s.partner || ''} · ${s.item_name || ''}`,
-  sourceFill: { partner: 'partner', item_code: 'item_code', item_name: 'item_name', inspect_qty: 'order_qty' },
-  extraKey: 'order_no', extraLabel: '수주번호',
-});
+// ---------- 공용: 검사기준 기반 검사 모달 (preset 품목으로 진행) ----------
+// opts: { kind, table, docPrefix, preset:{order_no,item_code,item_name,partner,inspect_qty}, onSaved }
+export async function openInspectionModal(opts) {
+  const p = opts.preset || {};
+  const users = await db.all('users', { sort: 'name' }).catch(() => []);
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <form id="ins-form" class="form-grid">
+      <div class="field"><label>검사일 <span class="req">*</span></label><input class="input" name="inspect_date" type="date" value="${todayStr()}"></div>
+      <div class="field"><label>수주번호</label><input class="input" value="${escapeHtml(p.order_no || '')}" readonly></div>
+      <div class="field"><label>품목</label><input class="input" value="${escapeHtml(p.item_code || '')} · ${escapeHtml(p.item_name || '')}" readonly></div>
+      <div class="field"><label>거래처</label><input class="input" value="${escapeHtml(p.partner || '')}" readonly></div>
+      <div class="field"><label>검사수량</label><input class="input" name="inspect_qty" type="number" value="${p.inspect_qty || 0}"></div>
+      <div class="field"><label>양품수량</label><input class="input" name="good_qty" type="number" value="${p.inspect_qty || 0}"></div>
+      <div class="field"><label>불량수량</label><input class="input" name="defect_qty" type="number" value="0"></div>
+      <div class="field"><label>검사자</label><select class="select" name="inspector"><option value="">선택</option>
+        ${users.map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}${u.department ? ` (${escapeHtml(u.department)})` : ''}</option>`).join('')}</select></div>
+    </form>
+    <h4 style="margin:18px 0 10px;display:flex;align-items:center;gap:8px">${icon('shield', 18)} 검사기준 평가</h4>
+    <div id="ins-criteria"></div>
+    <div class="flex between" style="margin-top:14px;padding:12px 16px;background:var(--surface-2);border-radius:10px"><b>종합 판정</b><span id="ins-result-badge">${badge('대기', 'neutral')}</span></div>`;
+
+  const form = body.querySelector('#ins-form');
+  let criteria = [];
+  async function loadCriteria() {
+    const slot = body.querySelector('#ins-criteria');
+    let stds = [];
+    try { stds = await db.all('inspection_standards', { filters: { item_code: p.item_code, inspect_type: opts.kind }, sort: 'std_no' }); } catch { stds = []; }
+    stds = stds.filter(s => s.use_yn !== false);
+    if (!stds.length) {
+      slot.innerHTML = `<div class="empty" style="padding:20px">${icon('alert', 40)}<h4>등록된 검사기준이 없습니다</h4><p>검사기준관리에서 이 품목의 <b>${escapeHtml(opts.kind)}</b> 기준을 먼저 등록하세요. (종합판정 수동 선택)</p>
+        <select class="select" id="ins-manual" style="max-width:200px;margin:10px auto 0"><option value="합격">합격</option><option value="불합격">불합격</option><option value="조건부합격">조건부합격</option></select></div>`;
+      slot.querySelector('#ins-manual').onchange = updateResult; updateResult(); return;
+    }
+    slot.innerHTML = `<div class="table-wrap"><table class="grid">
+      <thead><tr><th>검사항목</th><th class="center">평가</th><th>기준</th><th>측정/관측</th><th class="center">판정</th></tr></thead>
+      <tbody>${stds.map((s, i) => {
+        const quant = (s.eval_method || '정량적') === '정량적';
+        const input = quant ? `<input class="input" data-cidx="${i}" type="number" step="any" placeholder="측정값">` : `<select class="select" data-cidx="${i}"><option value="">판정</option><option value="OK">OK</option><option value="NG">NG</option></select>`;
+        const spec = quant ? `${escapeHtml(s.spec_value ?? '')}${s.tolerance ? ` <span class="muted">/ ±${escapeHtml(s.tolerance)}</span>` : ''}` : `<span class="muted">${escapeHtml(s.spec_value || 'OK/NG')}</span>`;
+        return `<tr><td class="cell-strong">${escapeHtml(s.inspect_item || '')}</td><td class="center">${badge(s.eval_method || '정량적', quant ? 'neutral' : 'info')}</td><td>${spec}</td><td>${input}</td><td class="center" data-judge="${i}">-</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+    criteria = stds.map((s, i) => ({ std: s, idx: i }));
+    slot.querySelectorAll('[data-cidx]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => judgeRow(+el.dataset.cidx)));
+    criteria.forEach(c => judgeRow(c.idx));
+  }
+  function judgeRow(i) {
+    const c = criteria[i]; if (!c) return;
+    const el = body.querySelector(`[data-cidx="${i}"]`); const cell = body.querySelector(`[data-judge="${i}"]`);
+    const quant = (c.std.eval_method || '정량적') === '정량적';
+    const j = quant ? (el.value === '' ? null : judgeQuant(c.std.spec_value, c.std.tolerance, el.value)) : (el.value || null);
+    c.judgment = j; c.measured = el.value; cell.innerHTML = j ? badge(j) : '-'; updateResult();
+  }
+  function updateResult() {
+    const b = body.querySelector('#ins-result-badge');
+    if (criteria.length) {
+      if (criteria.filter(c => c.judgment).length < criteria.length) { b.innerHTML = badge('검사중', 'warning'); body._result = null; return; }
+      body._result = criteria.every(c => c.judgment === 'OK') ? '합격' : '불합격'; b.innerHTML = badge(body._result);
+    } else { const m = body.querySelector('#ins-manual'); body._result = m ? m.value : '합격'; b.innerHTML = badge(body._result); }
+  }
+
+  openModal({
+    title: `${opts.kind} 진행 — ${escapeHtml(p.item_name || '')}`, body, wide: true,
+    footer: `<button class="btn" data-cancel>취소</button><button class="btn btn--primary" data-ok>${icon('check', 16)} 검사 저장</button>`,
+    onMount: ({ footEl, close }) => {
+      loadCriteria();
+      footEl.querySelector('[data-cancel]').onclick = close;
+      footEl.querySelector('[data-ok]').onclick = async () => {
+        if (criteria.length && body._result == null) { toast('모든 검사항목을 평가하세요.', 'error'); return; }
+        const g = (n) => { const el = form.querySelector(`[name="${n}"]`); return el ? el.value : ''; };
+        const result = body._result || '합격';
+        try {
+          const all = await db.all(opts.table, {});
+          const inspect_no = nextDocNo(opts.docPrefix, all.map(x => x.inspect_no));
+          const header = { inspect_no, inspect_date: g('inspect_date') || todayStr(), order_no: p.order_no || '', partner: p.partner || '',
+            item_code: p.item_code, item_name: p.item_name, inspect_qty: Number(g('inspect_qty')) || 0,
+            good_qty: Number(g('good_qty')) || 0, defect_qty: Number(g('defect_qty')) || 0, inspector: g('inspector'), result };
+          await db.insert(opts.table, header);
+          try { for (const c of criteria) await db.insert('inspection_details', { inspect_no, inspect_kind: opts.kind, item_code: p.item_code, inspect_item: c.std.inspect_item, eval_method: c.std.eval_method || '정량적', spec_value: c.std.spec_value, tolerance: c.std.tolerance, measured: c.measured ?? '', judgment: c.judgment || '' }); } catch { /* noop */ }
+          close(); toast(`출하검사(${inspect_no}) 저장 — 판정: ${result}`); opts.onSaved && opts.onSaved();
+        } catch (e) { toast(e.message || '저장 실패', 'error'); }
+      };
+    },
+  });
+}
+
+// 출하검사 — 생산완료 수주 리스트 + 행별 [출하검사] 버튼 (납품관리와 동일한 대상)
+export async function shippingInspection(root) {
+  const state = { search: '', chip: '전체' };
+  root.innerHTML = `
+    <div class="page-head">
+      <div class="page-head__text"><h1>출하검사</h1><p>생산이 완료된 수주를 대상으로 출하검사를 진행합니다.</p></div>
+      <div class="page-head__actions"><button class="btn" id="si-refresh">${icon('refresh', 16)} 새로고침</button></div>
+    </div>
+    <div id="si-stats"></div>
+    <div class="card">
+      <div class="toolbar"><div class="search-box grow">${icon('search', 16)}<input id="si-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div></div>
+      <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="si-chips"></div></div>
+      <div class="table-wrap"><div id="si-table"><div class="spinner"></div></div></div>
+    </div>`;
+  root.querySelector('#si-refresh').onclick = () => reload();
+  root.querySelector('#si-search').addEventListener('input', (e) => { state.search = e.target.value.trim(); renderTable(); });
+
+  let rows = [];
+  async function loadData() {
+    const [orders, plans, wos, insp] = await Promise.all([
+      db.all('sales_orders', {}), db.all('production_plans', {}), db.all('work_orders', {}), db.all('shipping_inspections', {}),
+    ]);
+    const planByOrder = {}; for (const pl of plans) (planByOrder[pl.order_no] ??= []).push(pl.plan_no);
+    const allWoComplete = (pns) => { const ws = wos.filter(w => pns.includes(w.plan_no)); return ws.length > 0 && ws.every(w => w.status === '완료'); };
+    const prodComplete = (o) => o.status === '완료' || allWoComplete(planByOrder[o.order_no] || []);
+    const inspByOrder = {}; for (const r of insp) if (r.order_no) inspByOrder[r.order_no] = r;
+    rows = orders.filter(prodComplete).map(o => {
+      const r = inspByOrder[o.order_no];
+      return { order_no: o.order_no, partner: o.partner, item_code: o.item_code, item_name: o.item_name, qty: +o.order_qty || 0,
+        inspected: !!r, result: r ? r.result : '', inspect_no: r ? r.inspect_no : '', inspect_date: r ? r.inspect_date : '' };
+    }).sort((a, b) => (a.inspected === b.inspected ? 0 : a.inspected ? 1 : -1) || String(a.order_no).localeCompare(String(b.order_no)));
+  }
+  function scoped() {
+    let out = rows;
+    if (state.chip === '미검사') out = out.filter(r => !r.inspected);
+    else if (state.chip === '검사완료') out = out.filter(r => r.inspected);
+    if (state.search) { const q = state.search.toLowerCase(); out = out.filter(r => [r.order_no, r.partner, r.item_name].some(v => String(v ?? '').toLowerCase().includes(q))); }
+    return out;
+  }
+  function renderStats() {
+    const done = rows.filter(r => r.inspected); const pass = done.filter(r => r.result === '합격').length;
+    const rate = done.length ? ((pass / done.length) * 100).toFixed(1) : '0.0';
+    root.querySelector('#si-stats').innerHTML = `<div class="stat-grid">
+      ${stat('검사 대상', num(rows.length), '건', 'shield', 'brand')}
+      ${stat('검사완료', num(done.length), '건', 'checkCircle', 'green')}
+      ${stat('미검사', num(rows.length - done.length), '건', 'clock', 'amber')}
+      ${stat('합격률', rate, '%', 'trendUp', 'violet')}</div>`;
+  }
+  function renderChips() {
+    const wrap = root.querySelector('#si-chips');
+    const opts = [['전체', rows.length], ['미검사', rows.filter(r => !r.inspected).length], ['검사완료', rows.filter(r => r.inspected).length]];
+    wrap.innerHTML = opts.map(([t, c]) => `<button class="chip ${state.chip === t ? 'active' : ''}" data-c="${t}">${t}<span class="chip__count">${c}</span></button>`).join('');
+    wrap.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { state.chip = b.dataset.c; renderChips(); renderTable(); });
+  }
+  function renderTable() {
+    const list = scoped(); const slot = root.querySelector('#si-table');
+    if (!list.length) { slot.innerHTML = `<div class="empty" style="padding:50px">${icon('inbox', 48)}<h4>대상 수주가 없습니다</h4><p>생산이 완료된 수주가 여기에 표시됩니다.</p></div>`; return; }
+    slot.innerHTML = `<table class="grid"><thead><tr><th>수주번호</th><th>거래처</th><th>품명</th><th class="num">수량</th><th class="center">검사상태</th><th>검사일</th><th class="center" style="width:130px">검사</th></tr></thead>
+      <tbody>${list.map(r => `<tr>
+        <td class="cell-code">${escapeHtml(r.order_no)}</td><td>${escapeHtml(r.partner || '')}</td><td class="cell-strong">${escapeHtml(r.item_name || '')}</td>
+        <td class="num mono">${num(r.qty)}</td>
+        <td class="center">${r.inspected ? badge(r.result || '검사완료', r.result === '합격' ? 'success' : r.result === '불합격' ? 'danger' : 'warning') : badge('미검사', 'neutral')}</td>
+        <td>${r.inspect_date ? fmtDate(r.inspect_date) : '<span class="muted">-</span>'}</td>
+        <td class="center">${r.inspected
+          ? `<button class="btn btn--sm" data-view="${escapeHtml(r.order_no)}">${icon('search', 14)} 결과</button>`
+          : `<button class="btn btn--sm btn--primary" data-do="${escapeHtml(r.order_no)}">${icon('shield', 14)} 출하검사</button>`}</td>
+      </tr>`).join('')}</tbody></table>`;
+    slot.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
+      const r = rows.find(x => x.order_no === b.dataset.do);
+      openInspectionModal({ kind: '출하검사', table: 'shipping_inspections', docPrefix: 'SI',
+        preset: { order_no: r.order_no, item_code: r.item_code, item_name: r.item_name, partner: r.partner, inspect_qty: r.qty },
+        onSaved: () => reload() });
+    });
+    slot.querySelectorAll('[data-view]').forEach(b => b.onclick = () => openResult(rows.find(x => x.order_no === b.dataset.view)));
+  }
+  async function openResult(r) {
+    let dets = []; try { dets = await db.all('inspection_details', { filters: { inspect_no: r.inspect_no } }); } catch { dets = []; }
+    const body = document.createElement('div');
+    body.innerHTML = `<div class="grid-2" style="margin-bottom:14px">${info('검사번호', r.inspect_no)}${info('검사일', fmtDate(r.inspect_date))}${info('품목', `${r.item_code} ${r.item_name}`)}${info('판정', r.result)}</div>
+      ${dets.length ? `<div class="table-wrap"><table class="grid"><thead><tr><th>검사항목</th><th class="center">평가</th><th>기준</th><th>측정/관측</th><th class="center">판정</th></tr></thead>
+        <tbody>${dets.map(d => `<tr><td class="cell-strong">${escapeHtml(d.inspect_item || '')}</td><td class="center">${badge(d.eval_method || '정량적', d.eval_method === '정성적' ? 'info' : 'neutral')}</td><td>${escapeHtml(d.spec_value ?? '')}${d.tolerance ? ` <span class="muted">/ ±${escapeHtml(d.tolerance)}</span>` : ''}</td><td class="mono">${escapeHtml(d.measured ?? '')}</td><td class="center">${d.judgment ? badge(d.judgment) : '-'}</td></tr>`).join('')}</tbody></table></div>` : `<div class="muted" style="padding:14px">항목별 상세 기록이 없습니다.</div>`}`;
+    openModal({ title: `출하검사 결과 — ${escapeHtml(r.order_no)}`, body, wide: true, footer: `<button class="btn" data-cancel>닫기</button>`, onMount: ({ footEl, close }) => { footEl.querySelector('[data-cancel]').onclick = close; } });
+  }
+  async function reload() {
+    try { await loadData(); renderStats(); renderChips(); renderTable(); }
+    catch (e) { root.querySelector('#si-table').innerHTML = `<div class="empty">${icon('alert', 48)}<h4>불러오기 실패</h4><p>${escapeHtml(e.message || e)}</p></div>`; }
+  }
+  reload();
+}

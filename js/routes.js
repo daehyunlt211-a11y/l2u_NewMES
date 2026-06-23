@@ -17,6 +17,7 @@ import { bomManager } from './pages/bom.js';
 import { toolStock } from './pages/toolStock.js';
 import * as ai from './pages/ai.js';
 import { rfidTags, rfidEvents, rfidTrace } from './pages/rfid.js';
+import { incomingStatus, shippingStatus, salesStatus, deliveryStatus } from './pages/statusView.js';
 
 // 사이드바 메뉴 트리 (group icon + 하위 항목)
 export const MENU = [
@@ -38,7 +39,9 @@ export const MENU = [
   {
     id: 'sales', label: '영업관리', icon: 'cart', children: [
       { label: '수주관리', path: '/sales/orders' },
+      { label: '수주현황', path: '/sales/order-status' },
       { label: '납품관리', path: '/sales/deliveries' },
+      { label: '납품현황', path: '/sales/delivery-status' },
     ],
   },
   {
@@ -67,9 +70,11 @@ export const MENU = [
     id: 'quality', label: '품질관리', icon: 'shield', children: [
       { label: '검사기준관리', path: '/quality/standards' },
       { label: '수입검사', path: '/quality/incoming' },
+      { label: '수입검사현황', path: '/quality/incoming-status' },
       { label: '부적합관리', path: '/quality/nonconformance' },
       { label: '부적합현황', path: '/quality/ncr-status' },
       { label: '출하검사', path: '/quality/shipping' },
+      { label: '출하검사현황', path: '/quality/shipping-status' },
     ],
   },
   {
@@ -108,7 +113,9 @@ export const ROUTES = {
   '/base/equipments': { render: base.equipments, title: '설비관리', group: '기준정보관리' },
 
   '/sales/orders': { render: sales.salesOrders, title: '수주관리', group: '영업관리' },
+  '/sales/order-status': { render: salesStatus, title: '수주현황', group: '영업관리' },
   '/sales/deliveries': { render: sales.deliveries, title: '납품관리', group: '영업관리' },
+  '/sales/delivery-status': { render: deliveryStatus, title: '납품현황', group: '영업관리' },
 
   '/production/plans': { render: prod.productionPlans, title: '생산계획관리', group: '생산관리' },
   '/production/work-orders': { render: prod.workOrders, title: '작업지시관리', group: '생산관리' },
@@ -125,9 +132,11 @@ export const ROUTES = {
 
   '/quality/standards': { render: inspectionStandards, title: '검사기준관리', group: '품질관리' },
   '/quality/incoming': { render: incomingInspection, title: '수입검사', group: '품질관리' },
+  '/quality/incoming-status': { render: incomingStatus, title: '수입검사현황', group: '품질관리' },
   '/quality/nonconformance': { render: qa.nonconformances, title: '부적합관리', group: '품질관리' },
   '/quality/ncr-status': { render: ncrStatus, title: '부적합현황', group: '품질관리' },
   '/quality/shipping': { render: shippingInspection, title: '출하검사', group: '품질관리' },
+  '/quality/shipping-status': { render: shippingStatus, title: '출하검사현황', group: '품질관리' },
 
   '/ai/delay': { render: ai.aiDelay, title: '생산지연 예측', group: 'AI 인텔리전스' },
   '/ai/defect': { render: ai.aiDefect, title: '불량원인 분석', group: 'AI 인텔리전스' },
