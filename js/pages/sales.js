@@ -206,9 +206,20 @@ export async function deliveries(root) {
 
     const all = slot.querySelector('#dlv-all');
     const boxes = [...slot.querySelectorAll('[data-sel]')];
+    const mark = (b) => b.closest('tr')?.classList.toggle('is-selected', b.checked);
     const syncAll = () => { if (all) { all.checked = boxes.length > 0 && boxes.every(b => b.checked); all.indeterminate = !all.checked && boxes.some(b => b.checked); } };
-    if (all) all.onchange = () => { boxes.forEach(b => { b.checked = all.checked; b.checked ? state.selected.add(b.dataset.sel) : state.selected.delete(b.dataset.sel); }); updateBtn(); };
-    boxes.forEach(b => b.onchange = () => { b.checked ? state.selected.add(b.dataset.sel) : state.selected.delete(b.dataset.sel); syncAll(); updateBtn(); });
+    if (all) all.onchange = () => { boxes.forEach(b => { b.checked = all.checked; b.checked ? state.selected.add(b.dataset.sel) : state.selected.delete(b.dataset.sel); mark(b); }); updateBtn(); };
+    boxes.forEach(b => b.onchange = () => { b.checked ? state.selected.add(b.dataset.sel) : state.selected.delete(b.dataset.sel); mark(b); syncAll(); updateBtn(); });
+    slot.querySelectorAll('tbody tr[data-order]').forEach(tr => {
+      const box = tr.querySelector('[data-sel]');
+      if (!box) return;
+      tr.classList.add('row-selectable');
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, input, select, label')) return;
+        box.checked = !box.checked;
+        box.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
     syncAll();
   }
 

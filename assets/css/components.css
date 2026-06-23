@@ -593,3 +593,9 @@ table.grid td.center, table.grid th.center { text-align: center; }
   background: transparent; color: var(--text-3); cursor: pointer; flex: 0 0 auto;
 }
 .tab__close:hover { background: var(--danger-bg, var(--border)); color: var(--danger, var(--text)); }
+
+/* 행 클릭 선택 (체크박스/라디오 목록) */
+table.grid tbody tr.row-selectable { cursor: pointer; }
+table.grid tbody tr.is-selected { background: var(--brand-50); }
+table.grid tbody tr.is-selected:hover { background: var(--brand-50); }
+[data-theme="dark"] table.grid tbody tr.is-selected { background: rgba(59,99,240,0.16); }

@@ -241,7 +241,17 @@ export async function materialStocks(root) {
       </div>`;
 
     const retBtn = editor.querySelector('#ms-return');
-    editor.querySelectorAll('[data-pick]').forEach(rb => rb.onchange = () => { state.selected = rb.dataset.pick; retBtn.disabled = false; });
+    const pickRow = (inboundNo) => {
+      state.selected = inboundNo; retBtn.disabled = false;
+      editor.querySelectorAll('tbody tr[data-in]').forEach(tr => tr.classList.toggle('is-selected', tr.dataset.in === inboundNo));
+      const rb = editor.querySelector(`[data-pick="${CSS.escape(inboundNo)}"]`); if (rb) rb.checked = true;
+    };
+    editor.querySelectorAll('[data-pick]').forEach(rb => rb.onchange = () => pickRow(rb.dataset.pick));
+    editor.querySelectorAll('tbody tr[data-in]').forEach(tr => {
+      if (!tr.querySelector('[data-pick]')) return; // 반품 불가(잔량0) 행은 선택 불가
+      tr.classList.add('row-selectable');
+      tr.addEventListener('click', (e) => { if (e.target.closest('button, a, input, select, label')) return; pickRow(tr.dataset.in); });
+    });
     retBtn.onclick = () => openReturn(lots.find(l => l.inbound_no === state.selected));
   }
 

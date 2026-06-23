@@ -225,13 +225,24 @@ export function createCrudPage(cfg) {
         load();
       });
 
-      // 행 선택(다중) — 일괄 작업용
+      // 행 선택(다중) — 일괄 작업용. 체크박스뿐 아니라 행 클릭으로도 선택 토글
       if (cfg.bulkActions) {
         const selAll = tableSlot.querySelector('#sel-all');
         const boxes = [...tableSlot.querySelectorAll('[data-select]')];
+        const mark = (b) => b.closest('tr')?.classList.toggle('is-selected', b.checked);
         const syncAll = () => { selAll.checked = boxes.length > 0 && boxes.every(b => b.checked); selAll.indeterminate = !selAll.checked && boxes.some(b => b.checked); };
-        selAll.onchange = () => { boxes.forEach(b => { b.checked = selAll.checked; b.checked ? state.selected.add(b.dataset.select) : state.selected.delete(b.dataset.select); }); updateBulk(); };
-        boxes.forEach(b => b.onchange = () => { b.checked ? state.selected.add(b.dataset.select) : state.selected.delete(b.dataset.select); syncAll(); updateBulk(); });
+        selAll.onchange = () => { boxes.forEach(b => { b.checked = selAll.checked; b.checked ? state.selected.add(b.dataset.select) : state.selected.delete(b.dataset.select); mark(b); }); updateBulk(); };
+        boxes.forEach(b => b.onchange = () => { b.checked ? state.selected.add(b.dataset.select) : state.selected.delete(b.dataset.select); mark(b); syncAll(); updateBulk(); });
+        tableSlot.querySelectorAll('tbody tr[data-id]').forEach(tr => {
+          tr.classList.add('row-selectable');
+          tr.addEventListener('click', (e) => {
+            if (e.target.closest('button, a, input, select, label, .row-actions')) return;
+            const box = tr.querySelector('[data-select]');
+            if (!box) return;
+            box.checked = !box.checked;
+            box.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+        });
       }
       if (!cfg.readOnly) {
         tableSlot.querySelectorAll('[data-rowact]').forEach(b => b.onclick = async () => {
