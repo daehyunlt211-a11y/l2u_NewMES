@@ -146,12 +146,20 @@ function renderTabs(activePath) {
     <div class="tab ${t.path === activePath ? 'active' : ''}" data-tab="${escapeHtml(t.path)}" title="${escapeHtml(t.title)}">
       <span class="tab__label">${escapeHtml(t.title)}</span>
       <button class="tab__close" data-close-tab="${escapeHtml(t.path)}" title="탭 닫기">${icon('x', 12)}</button>
-    </div>`).join('');
+    </div>`).join('')
+    + (tabs.length > 1 ? `<button class="tab-closeall" id="tab-closeall" title="모든 탭 닫기">${icon('x', 13)} 전체 닫기</button>` : '');
   bar.querySelectorAll('[data-tab]').forEach(el => el.onclick = (e) => {
     if (e.target.closest('[data-close-tab]')) return;
     if (el.dataset.tab !== currentPath()) location.hash = el.dataset.tab;
   });
   bar.querySelectorAll('[data-close-tab]').forEach(b => b.onclick = (e) => { e.stopPropagation(); closeTab(b.dataset.closeTab); });
+  const ca = bar.querySelector('#tab-closeall');
+  if (ca) ca.onclick = closeAllTabs;
+}
+function closeAllTabs() {
+  tabs = []; saveTabs();
+  if (currentPath() === DEFAULT_ROUTE) route(); // 이미 대시보드면 hashchange 없으므로 강제 갱신
+  else location.hash = DEFAULT_ROUTE;
 }
 function closeTab(path) {
   const idx = tabs.findIndex(t => t.path === path);

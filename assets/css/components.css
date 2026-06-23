@@ -599,3 +599,14 @@ table.grid tbody tr.row-selectable { cursor: pointer; }
 table.grid tbody tr.is-selected { background: var(--brand-50); }
 table.grid tbody tr.is-selected:hover { background: var(--brand-50); }
 [data-theme="dark"] table.grid tbody tr.is-selected { background: rgba(59,99,240,0.16); }
+
+/* 탭 전체 닫기 버튼 */
+.tab-closeall {
+  margin-left: auto; flex: 0 0 auto; align-self: center;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 10px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-3); font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all var(--transition);
+}
+.tab-closeall:hover { color: var(--danger); border-color: var(--danger-bg, var(--border-strong)); background: var(--danger-bg, var(--surface-2)); }
