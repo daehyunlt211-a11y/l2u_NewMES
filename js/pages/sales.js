@@ -71,7 +71,7 @@ export const salesOrders = createCrudPage({
 //  · 행 선택 → '선택 납품완료' 버튼으로 완료 처리 (수정/상태변경 불가)
 export async function deliveries(root) {
   const today = todayStr();
-  const state = { search: '', chip: '전체', selected: new Set() };
+  const state = { search: '', chip: '전체', dateBasis: 'due', dateFrom: '', dateTo: '', selected: new Set() };
 
   root.innerHTML = `
     <div class="page-head">
@@ -83,7 +83,26 @@ export async function deliveries(root) {
     </div>
     <div id="dlv-stats"></div>
     <div class="card">
-      <div class="toolbar"><div class="search-box grow">${icon('search', 16)}<input id="dlv-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div></div>
+      <div class="toolbar">
+        <div class="search-box grow">${icon('search', 16)}<input id="dlv-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div>
+        <div class="date-range" title="기준 날짜 기간 조회">
+          <span class="date-range__label">${icon('calendar', 14)} 기준</span>
+          <select class="select" id="dlv-basis" style="width:auto;min-width:108px">
+            <option value="due">납기예정일</option>
+            <option value="complete">납품완료일</option>
+          </select>
+          <select class="select" id="dlv-preset" style="width:auto;min-width:96px">
+            <option value="">기간 전체</option>
+            <option value="today">오늘</option>
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+            <option value="month">이번 달</option>
+          </select>
+          <input class="input input--date" type="date" id="dlv-from" aria-label="시작일"/>
+          <span class="date-range__sep">~</span>
+          <input class="input input--date" type="date" id="dlv-to" aria-label="종료일"/>
+        </div>
+      </div>
       <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="dlv-chips"></div></div>
       <div class="table-wrap"><div id="dlv-table"></div></div>
     </div>`;
@@ -115,17 +134,33 @@ export async function deliveries(root) {
     }).sort((a, b) => (a.status === b.status ? 0 : a.status === '납품대기' ? -1 : 1) || String(a.due).localeCompare(String(b.due)));
   }
 
-  function visibleRows() {
+  // 검색 + 날짜 기간(기준: 납기예정일/납품완료일) 적용
+  function scopedRows() {
     let out = rows;
-    if (state.chip !== '전체') out = out.filter(r => r.status === state.chip);
     if (state.search) { const q = state.search.toLowerCase(); out = out.filter(r => [r.order_no, r.partner, r.item_name].some(v => String(v ?? '').toLowerCase().includes(q))); }
+    if (state.dateFrom || state.dateTo) {
+      const key = state.dateBasis === 'complete' ? 'completeDate' : 'due';
+      out = out.filter(r => {
+        const v = String(r[key] || '').slice(0, 10);
+        if (!v) return false; // 기준 날짜가 없는 건은 기간 조회 시 제외
+        if (state.dateFrom && v < state.dateFrom) return false;
+        if (state.dateTo && v > state.dateTo) return false;
+        return true;
+      });
+    }
+    return out;
+  }
+  function visibleRows() {
+    let out = scopedRows();
+    if (state.chip !== '전체') out = out.filter(r => r.status === state.chip);
     return out;
   }
 
   function renderStats() {
-    const done = rows.filter(r => r.status === '납품완료');
-    const wait = rows.filter(r => r.status === '납품대기');
-    const delayed = rows.filter(r => r.status === '납품대기' && r.delayed);
+    const base = scopedRows();
+    const done = base.filter(r => r.status === '납품완료');
+    const wait = base.filter(r => r.status === '납품대기');
+    const delayed = base.filter(r => r.status === '납품대기' && r.delayed);
     const amount = done.reduce((s, r) => s + r.amount, 0);
     root.querySelector('#dlv-stats').innerHTML = `<div class="stat-grid">
       ${statCard('납품완료', num(done.length), '건', 'checkCircle', 'green')}
@@ -137,9 +172,10 @@ export async function deliveries(root) {
 
   function renderChips() {
     const wrap = root.querySelector('#dlv-chips');
+    const base = scopedRows();
     const opts = ['전체', '납품대기', '납품완료'];
     wrap.innerHTML = opts.map(o => {
-      const c = o === '전체' ? rows.length : rows.filter(r => r.status === o).length;
+      const c = o === '전체' ? base.length : base.filter(r => r.status === o).length;
       return `<button class="chip ${state.chip === o ? 'active' : ''}" data-chip="${o}">${o}<span class="chip__count">${c}</span></button>`;
     }).join('');
     wrap.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { state.chip = b.dataset.chip; state.selected.clear(); renderChips(); renderTable(); updateBtn(); });
@@ -201,9 +237,29 @@ export async function deliveries(root) {
 
   async function reload() { await loadData(); renderStats(); renderChips(); renderTable(); updateBtn(); }
 
+  // 검색·날짜 변경 시 통계/칩/표 갱신(데이터 재조회는 안 함)
+  const refreshView = () => { state.selected.clear(); renderStats(); renderChips(); renderTable(); updateBtn(); };
   root.querySelector('#dlv-refresh').onclick = () => reload();
   root.querySelector('#dlv-complete').onclick = () => completeSelected();
-  root.querySelector('#dlv-search').addEventListener('input', debounce((e) => { state.search = e.target.value.trim(); renderTable(); }));
+  root.querySelector('#dlv-search').addEventListener('input', debounce((e) => { state.search = e.target.value.trim(); refreshView(); }));
+
+  const fromEl = root.querySelector('#dlv-from');
+  const toEl = root.querySelector('#dlv-to');
+  const presetEl = root.querySelector('#dlv-preset');
+  const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const applyDates = () => { state.dateFrom = fromEl.value; state.dateTo = toEl.value; refreshView(); };
+  root.querySelector('#dlv-basis').addEventListener('change', (e) => { state.dateBasis = e.target.value; refreshView(); });
+  fromEl.addEventListener('change', () => { presetEl.value = ''; applyDates(); });
+  toEl.addEventListener('change', () => { presetEl.value = ''; applyDates(); });
+  presetEl.addEventListener('change', () => {
+    const v = presetEl.value, now = new Date();
+    let from = '', to = '';
+    if (v === 'today') { from = to = isoLocal(now); }
+    else if (v === '7') { const d = new Date(now); d.setDate(d.getDate() - 6); from = isoLocal(d); to = isoLocal(now); }
+    else if (v === '30') { const d = new Date(now); d.setDate(d.getDate() - 29); from = isoLocal(d); to = isoLocal(now); }
+    else if (v === 'month') { from = isoLocal(new Date(now.getFullYear(), now.getMonth(), 1)); to = isoLocal(now); }
+    fromEl.value = from; toEl.value = to; applyDates();
+  });
 
   try { await reload(); }
   catch (e) { root.querySelector('#dlv-table').innerHTML = `<div class="empty" style="padding:60px">${icon('alert', 48)}<h4>불러오기 실패</h4><p>${escapeHtml(e.message || e)}</p></div>`; }
