@@ -7,7 +7,7 @@ import { icon } from '../ui/icons.js';
 export async function toolStock(root) {
   root.innerHTML = `
     <div class="page-head">
-      <div class="page-head__text"><h1>공구 재고관리</h1><p>공구별 입고 LOT의 수명(횟수)과 남은 수명을 관리합니다. (POP 투입 시 LOT별로 차감)</p></div>
+      <div class="page-head__text"><h1>공구 재고관리</h1><p>입고 1개마다 LOT을 부여해 단위별 수명(횟수)·남은 수명을 관리합니다. (POP 투입 시 LOT별로 차감)</p></div>
       <div class="page-head__actions"><button class="btn" id="ts-refresh">${icon('refresh', 16)} 새로고침</button></div>
     </div>
     <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
@@ -29,21 +29,34 @@ export async function toolStock(root) {
     ]);
   } catch (e) { root.querySelector('#ts-list').innerHTML = `<div class="empty">${icon('alert', 40)}<h4>불러오기 실패</h4><p>${escapeHtml(e.message || e)}</p></div>`; return; }
 
-  // 공구별 입고 LOT (move_type 입고) + 사용/남은수명 계산
+  // 공구별 입고 단위(1개)마다 LOT 부여 + 사용/남은수명 계산
+  // 입고 건(qty=N)을 1개씩 분해 → LOT 번호 "입고번호-01, -02 …"
+  // 입고 건의 누적 사용횟수는 단위 LOT에 선입선출(FIFO)로 배분
   function lotsOf(code) {
     const tool = state.tools.find(t => t.code === code) || {};
-    const life1 = +tool.life_count || 0; // 1개당 수명(횟수)
-    const lots = state.moves.filter(m => m.move_type === '입고' && m.tool_code === code)
+    const life1 = +tool.life_count || 0; // 1개당 수명(횟수), 0이면 수명 무제한
+    const moves = state.moves.filter(m => m.move_type === '입고' && m.tool_code === code)
       .sort((a, b) => String(a.move_date || '').localeCompare(String(b.move_date || '')));
-    return lots.map(m => {
-      const lifeTotal = life1 > 0 ? life1 * (+m.qty || 0) : 0; // 0이면 수명 무제한
-      const used = state.usages.filter(u => u.lot_no === m.move_no).reduce((s, u) => s + (+u.use_qty || 0), 0);
-      return { move_no: m.move_no, move_date: m.move_date, qty: +m.qty || 0, life1, lifeTotal, used, remain: life1 > 0 ? Math.max(0, lifeTotal - used) : null };
-    });
+    const units = [];
+    for (const m of moves) {
+      const qty = +m.qty || 0;
+      let pool = state.usages.filter(u => u.lot_no === m.move_no).reduce((s, u) => s + (+u.use_qty || 0), 0);
+      for (let i = 1; i <= qty; i++) {
+        const lot_no = `${m.move_no}-${String(i).padStart(2, '0')}`;
+        if (life1 > 0) {
+          const used = Math.min(life1, Math.max(0, pool));
+          pool -= used;
+          units.push({ lot_no, move_no: m.move_no, move_date: m.move_date, seq: i, qty: 1, life1, lifeTotal: life1, used, remain: Math.max(0, life1 - used) });
+        } else {
+          units.push({ lot_no, move_no: m.move_no, move_date: m.move_date, seq: i, qty: 1, life1: 0, lifeTotal: 0, used: 0, remain: null });
+        }
+      }
+    }
+    return units;
   }
   function remainTotal(code) {
     const lots = lotsOf(code);
-    if (lots.every(l => l.remain === null)) return null; // 수명 무제한
+    if (!lots.length || lots.every(l => l.remain === null)) return null; // 수명 무제한
     return lots.reduce((s, l) => s + (l.remain || 0), 0);
   }
 
@@ -84,17 +97,18 @@ export async function toolStock(root) {
           ${infoBox('사용공정', t.process || '-')}
           ${infoBox('남은수명 합계', lifeUnlimited ? '-' : num(remainTotal(code)))}
         </div>
-        <h4 style="margin:0 0 10px;display:flex;align-items:center;gap:8px">${icon('inbox', 18)} 입고 LOT 상세</h4>
+        <h4 style="margin:0 0 10px;display:flex;align-items:center;gap:8px">${icon('inbox', 18)} 단위 LOT 상세 <span class="muted" style="font-weight:500;font-size:13px">(입고 1개당 LOT 부여 · 총 ${num(lots.length)}개)</span></h4>
         <div class="table-wrap"><table class="grid">
-          <thead><tr><th>입고일</th><th>LOT</th><th class="num">입고수량</th><th class="num">수명(횟수)</th><th class="num">사용(횟수)</th><th class="num">남은수명</th><th class="center">상태</th></tr></thead>
+          <thead><tr><th>입고일</th><th>LOT 번호</th><th>입고건</th><th class="num">수량</th><th class="num">수명(횟수)</th><th class="num">사용(횟수)</th><th class="num">남은수명</th><th class="center">상태</th></tr></thead>
           <tbody>${lots.length ? lots.map(l => `<tr>
-            <td>${fmtDate(l.move_date)}</td><td class="cell-code">${escapeHtml(l.move_no || '')}</td>
+            <td>${fmtDate(l.move_date)}</td><td class="cell-code" style="font-weight:700">${escapeHtml(l.lot_no)}</td>
+            <td class="cell-code muted">${escapeHtml(l.move_no || '')}</td>
             <td class="num mono">${num(l.qty)}</td>
             <td class="num mono">${l.remain === null ? '∞' : num(l.lifeTotal)}</td>
             <td class="num mono">${num(l.used)}</td>
             <td class="num mono" style="font-weight:700">${l.remain === null ? '∞' : num(l.remain)}</td>
-            <td class="center">${l.remain === null ? badge('수명관리X', 'neutral') : (l.remain <= 0 ? badge('소진', 'danger') : badge('사용가능', 'success'))}</td>
-          </tr>`).join('') : `<tr><td colspan="7"><div class="empty" style="padding:30px">${icon('inbox', 40)}<h4>입고 LOT이 없습니다</h4><p>공구 입·출고관리에서 입고를 등록하세요.</p></div></td></tr>`}</tbody>
+            <td class="center">${unitStatus(l)}</td>
+          </tr>`).join('') : `<tr><td colspan="8"><div class="empty" style="padding:30px">${icon('inbox', 40)}<h4>입고 LOT이 없습니다</h4><p>공구 입·출고관리에서 입고를 등록하세요.</p></div></td></tr>`}</tbody>
         </table></div>
       </div>`;
   }
@@ -103,6 +117,13 @@ export async function toolStock(root) {
   root.querySelector('#ts-search').addEventListener('input', (e) => renderList(e.target.value.trim()));
 }
 
+// 단위 LOT 상태: 수명관리X / 소진 / 사용중 / 미사용
+function unitStatus(l) {
+  if (l.remain === null) return badge('수명관리X', 'neutral');
+  if (l.remain <= 0) return badge('소진', 'danger');
+  if (l.used > 0) return badge('사용중', 'warning');
+  return badge('미사용', 'success');
+}
 function infoBox(label, val) {
   return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px"><div class="muted" style="font-size:12px">${escapeHtml(label)}</div><div style="font-weight:700;font-size:15px;margin-top:2px">${escapeHtml(val)}</div></div>`;
 }
