@@ -102,7 +102,7 @@ export function createStatusPage(cfg) {
       openModal({ title: `${title} — ${list.length}건`, body, wide: true, footer: `<button class="btn" data-cancel>닫기</button>`, onMount: ({ footEl, close }) => { footEl.querySelector('[data-cancel]').onclick = close; } });
     }
 
-    try { allRows = await db.all(cfg.table, {}); }
+    try { allRows = cfg.loader ? await cfg.loader() : await db.all(cfg.table, {}); }
     catch (e) { root.querySelector('#sv-trend').innerHTML = `<div class="empty">${icon('alert', 48)}<h4>불러오기 실패</h4><p>${escapeHtml(e.message || e)}</p></div>`; return; }
     renderFilters(); apply();
   };
@@ -209,16 +209,39 @@ export const salesStatus = createStatusPage({
   listCols: [{ label: '수주번호', key: 'order_no', cls: 'cell-code' }, { label: '수주일', key: 'order_date', render: (r) => fmtDate(r.order_date) }, { label: '거래처', key: 'partner' }, { label: '품명', key: 'item_name', cls: 'cell-strong' }, { label: '수량', key: 'order_qty', align: 'num' }, { label: '금액', key: 'amount', align: 'num', render: (r) => won(r.amount) }, { label: '상태', key: 'status', align: 'center', render: (r) => badge(r.status || '') }],
 });
 
+// 납품현황 — 납품관리와 동일하게 생산완료 수주 기반(납품대기 포함). 기준일=납품완료일 or 납기예정일
+async function deliveryStatusLoader() {
+  const [orders, plans, wos, dels] = await Promise.all([
+    db.all('sales_orders', {}), db.all('production_plans', {}), db.all('work_orders', {}), db.all('deliveries', {}),
+  ]);
+  const planByOrder = {}; for (const p of plans) (planByOrder[p.order_no] ??= []).push(p.plan_no);
+  const allWoComplete = (pns) => { const ws = wos.filter(w => pns.includes(w.plan_no)); return ws.length > 0 && ws.every(w => w.status === '완료'); };
+  const prodComplete = (o) => o.status === '완료' || allWoComplete(planByOrder[o.order_no] || []);
+  const delByOrder = {}; for (const d of dels) if (d.status === '납품완료') delByOrder[d.order_no] = d;
+  return orders.filter(prodComplete).map(o => {
+    const dd = delByOrder[o.order_no];
+    const completeDate = dd ? String(dd.delivery_date || '').slice(0, 10) : '';
+    const due = String(o.due_date || '').slice(0, 10);
+    return {
+      order_no: o.order_no, partner: o.partner, item_name: o.item_name, delivery_qty: +o.order_qty || 0,
+      amount: +o.amount || 0, status: dd ? '납품완료' : '납품대기',
+      delivery_no: dd ? dd.delivery_no : '', complete_date: completeDate, due_date: due,
+      ref_date: completeDate || due, // 추이/기간 기준일
+    };
+  });
+}
+
 export const deliveryStatus = createStatusPage({
-  title: '납품현황', table: 'deliveries', dateKey: 'delivery_date',
+  title: '납품현황', loader: deliveryStatusLoader, dateKey: 'ref_date',
+  subtitle: '생산완료 수주 기준 납품 현황입니다. (납품대기 포함, 기준일: 납품완료일·미납은 납기예정일)',
   metric: { mode: 'sum', key: 'amount', unit: '원', label: '납품금액' },
-  dims: [{ label: '거래처별', icon: 'cart', key: 'partner' }, { label: '품목별', icon: 'box', key: 'item_name' }, { label: '상태별', icon: 'sliders', key: 'status' }],
+  dims: [{ label: '상태별', icon: 'sliders', key: 'status' }, { label: '거래처별', icon: 'cart', key: 'partner' }, { label: '품목별', icon: 'box', key: 'item_name' }],
   filters: [{ key: 'status', label: '상태' }, { key: 'partner', label: '거래처' }],
   stats: (rows) => [
-    { label: '납품 건수', value: num(rows.length), unit: '건', icon: 'truck', tint: 'brand' },
-    { label: '납품 수량', value: num(rows.reduce((s, r) => s + (+r.delivery_qty || 0), 0)), unit: 'EA', icon: 'box', tint: 'violet' },
-    { label: '납품 금액', value: won(rows.reduce((s, r) => s + (+r.amount || 0), 0)), unit: '', icon: 'dollar', tint: 'green' },
+    { label: '대상 건수', value: num(rows.length), unit: '건', icon: 'truck', tint: 'brand' },
     { label: '납품완료', value: num(rows.filter(r => r.status === '납품완료').length), unit: '건', icon: 'checkCircle', tint: 'green' },
+    { label: '납품대기', value: num(rows.filter(r => r.status === '납품대기').length), unit: '건', icon: 'clock', tint: 'amber' },
+    { label: '납품 금액(완료)', value: won(rows.filter(r => r.status === '납품완료').reduce((s, r) => s + (+r.amount || 0), 0)), unit: '', icon: 'dollar', tint: 'violet' },
   ],
-  listCols: [{ label: '납품번호', key: 'delivery_no', cls: 'cell-code' }, { label: '납품일', key: 'delivery_date', render: (r) => fmtDate(r.delivery_date) }, { label: '수주번호', key: 'order_no', cls: 'cell-code' }, { label: '거래처', key: 'partner' }, { label: '품명', key: 'item_name', cls: 'cell-strong' }, { label: '금액', key: 'amount', align: 'num', render: (r) => won(r.amount) }, { label: '상태', key: 'status', align: 'center', render: (r) => badge(r.status || '') }],
+  listCols: [{ label: '수주번호', key: 'order_no', cls: 'cell-code' }, { label: '거래처', key: 'partner' }, { label: '품명', key: 'item_name', cls: 'cell-strong' }, { label: '금액', key: 'amount', align: 'num', render: (r) => won(r.amount) }, { label: '납기예정', key: 'due_date', render: (r) => fmtDate(r.due_date) }, { label: '납품완료', key: 'complete_date', render: (r) => r.complete_date ? fmtDate(r.complete_date) : '-' }, { label: '상태', key: 'status', align: 'center', render: (r) => badge(r.status || '') }],
 });

@@ -418,17 +418,19 @@ export async function shippingInspection(root) {
 
   let rows = [];
   async function loadData() {
-    const [orders, plans, wos, insp] = await Promise.all([
-      db.all('sales_orders', {}), db.all('production_plans', {}), db.all('work_orders', {}), db.all('shipping_inspections', {}),
+    const [orders, plans, wos, insp, dels] = await Promise.all([
+      db.all('sales_orders', {}), db.all('production_plans', {}), db.all('work_orders', {}), db.all('shipping_inspections', {}), db.all('deliveries', {}),
     ]);
     const planByOrder = {}; for (const pl of plans) (planByOrder[pl.order_no] ??= []).push(pl.plan_no);
     const allWoComplete = (pns) => { const ws = wos.filter(w => pns.includes(w.plan_no)); return ws.length > 0 && ws.every(w => w.status === '완료'); };
     const prodComplete = (o) => o.status === '완료' || allWoComplete(planByOrder[o.order_no] || []);
     const inspByOrder = {}; for (const r of insp) if (r.order_no) inspByOrder[r.order_no] = r;
+    const deliveredOrders = new Set(dels.filter(d => d.status === '납품완료').map(d => d.order_no));
     rows = orders.filter(prodComplete).map(o => {
       const r = inspByOrder[o.order_no];
       return { order_no: o.order_no, partner: o.partner, item_code: o.item_code, item_name: o.item_name, qty: +o.order_qty || 0,
-        inspected: !!r, result: r ? r.result : '', inspect_no: r ? r.inspect_no : '', inspect_date: r ? r.inspect_date : '' };
+        inspected: !!r, result: r ? r.result : '', inspect_no: r ? r.inspect_no : '', inspect_date: r ? r.inspect_date : '',
+        delivery_status: deliveredOrders.has(o.order_no) ? '납품완료' : '납품대기' };
     }).sort((a, b) => (a.inspected === b.inspected ? 0 : a.inspected ? 1 : -1) || String(a.order_no).localeCompare(String(b.order_no)));
   }
   function scoped() {
@@ -456,11 +458,12 @@ export async function shippingInspection(root) {
   function renderTable() {
     const list = scoped(); const slot = root.querySelector('#si-table');
     if (!list.length) { slot.innerHTML = `<div class="empty" style="padding:50px">${icon('inbox', 48)}<h4>대상 수주가 없습니다</h4><p>생산이 완료된 수주가 여기에 표시됩니다.</p></div>`; return; }
-    slot.innerHTML = `<table class="grid"><thead><tr><th>수주번호</th><th>거래처</th><th>품명</th><th class="num">수량</th><th class="center">검사상태</th><th>검사일</th><th class="center" style="width:130px">검사</th></tr></thead>
+    slot.innerHTML = `<table class="grid"><thead><tr><th>수주번호</th><th>거래처</th><th>품명</th><th class="num">수량</th><th class="center">검사상태</th><th class="center">납품상태</th><th>검사일</th><th class="center" style="width:130px">검사</th></tr></thead>
       <tbody>${list.map(r => `<tr>
         <td class="cell-code">${escapeHtml(r.order_no)}</td><td>${escapeHtml(r.partner || '')}</td><td class="cell-strong">${escapeHtml(r.item_name || '')}</td>
         <td class="num mono">${num(r.qty)}</td>
         <td class="center">${r.inspected ? badge(r.result || '검사완료', r.result === '합격' ? 'success' : r.result === '불합격' ? 'danger' : 'warning') : badge('미검사', 'neutral')}</td>
+        <td class="center">${badge(r.delivery_status, r.delivery_status === '납품완료' ? 'success' : 'neutral')}</td>
         <td>${r.inspect_date ? fmtDate(r.inspect_date) : '<span class="muted">-</span>'}</td>
         <td class="center">${r.inspected
           ? `<button class="btn btn--sm" data-view="${escapeHtml(r.order_no)}">${icon('search', 14)} 결과</button>`
