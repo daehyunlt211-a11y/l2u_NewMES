@@ -1,7 +1,9 @@
 // 영업관리: 수주관리 / 납품관리
 import { createCrudPage } from '../lib/crud.js';
-import { num, won, todayStr } from '../lib/format.js';
-import { badge } from '../ui/components.js';
+import { db } from '../lib/db.js';
+import { num, won, todayStr, fmtDate, escapeHtml, nextDocNo, debounce } from '../lib/format.js';
+import { badge, confirmDialog, toast } from '../ui/components.js';
+import { icon } from '../ui/icons.js';
 
 // 금액 자동계산 (수량 * 단가) 바인딩 헬퍼
 function bindAmount(form, qtyKey, priceKey, amountKey) {
@@ -63,48 +65,152 @@ export const salesOrders = createCrudPage({
   ],
 });
 
-// 2-2 납품관리
-export const deliveries = createCrudPage({
-  table: 'deliveries', title: '납품관리', subtitle: '수주 건의 출하·납품 실적을 관리합니다.',
-  searchFields: ['delivery_no', 'order_no', 'partner', 'item_name'], searchPlaceholder: '납품번호·수주번호·거래처 검색',
-  defaultSort: { key: 'delivery_date', dir: 'desc' },
-  dateField: { key: 'delivery_date', label: '납품일' },
-  filters: [{ key: 'status', label: '상태', options: ['출고예정', '납품완료'] }],
-  statusChips: { key: 'status', options: ['출고예정', '납품완료'] },
-  docNoField: { key: 'delivery_no', prefix: 'DL' },
-  computed: (form) => bindAmount(form, 'delivery_qty', 'unit_price', 'amount'),
-  stats: async (rows) => {
-    const total = rows.reduce((s, r) => s + (+r.amount || 0), 0);
+// 2-2 납품관리 — 생산이 완료된 수주를 납품 처리(커스텀 화면)
+//  · 리스트: 생산완료 수주만 표시, 최초 상태 '납품대기'
+//  · 납기예정일(수주 due_date) / 실제 납품완료일(완료 시 기록) / 납기상태(지연) 표시
+//  · 행 선택 → '선택 납품완료' 버튼으로 완료 처리 (수정/상태변경 불가)
+export async function deliveries(root) {
+  const today = todayStr();
+  const state = { search: '', chip: '전체', selected: new Set() };
+
+  root.innerHTML = `
+    <div class="page-head">
+      <div class="page-head__text"><h1>납품관리</h1><p>생산이 완료된 수주를 납품 처리합니다. 행을 선택해 납품완료로 전환하세요.</p></div>
+      <div class="page-head__actions">
+        <button class="btn btn--primary" id="dlv-complete" disabled>${icon('check', 16)} 선택 납품완료 <span id="dlv-cnt"></span></button>
+        <button class="btn" id="dlv-refresh">${icon('refresh', 16)} 새로고침</button>
+      </div>
+    </div>
+    <div id="dlv-stats"></div>
+    <div class="card">
+      <div class="toolbar"><div class="search-box grow">${icon('search', 16)}<input id="dlv-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div></div>
+      <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="dlv-chips"></div></div>
+      <div class="table-wrap"><div id="dlv-table"></div></div>
+    </div>`;
+
+  let rows = [];
+  async function loadData() {
+    const [orders, plans, wos, dels] = await Promise.all([
+      db.all('sales_orders', {}), db.all('production_plans', {}), db.all('work_orders', {}), db.all('deliveries', {}),
+    ]);
+    const planByOrder = {};
+    for (const p of plans) (planByOrder[p.order_no] ??= []).push(p.plan_no);
+    const allWoComplete = (planNos) => {
+      const ws = wos.filter(w => planNos.includes(w.plan_no));
+      return ws.length > 0 && ws.every(w => w.status === '완료');
+    };
+    const prodComplete = (o) => o.status === '완료' || allWoComplete(planByOrder[o.order_no] || []);
+    const delByOrder = {};
+    for (const d of dels) if (d.status === '납품완료') delByOrder[d.order_no] = d;
+
+    rows = orders.filter(prodComplete).map(o => {
+      const d = delByOrder[o.order_no];
+      const status = d ? '납품완료' : '납품대기';
+      const completeDate = d ? String(d.delivery_date || '').slice(0, 10) : '';
+      const due = String(o.due_date || '').slice(0, 10);
+      const delayed = status === '납품완료'
+        ? !!(due && completeDate && completeDate > due)
+        : !!(due && today > due);
+      return { order_no: o.order_no, partner: o.partner, item_code: o.item_code, item_name: o.item_name, qty: +o.order_qty || 0, unit_price: +o.unit_price || 0, amount: +o.amount || 0, due, status, completeDate, delayed };
+    }).sort((a, b) => (a.status === b.status ? 0 : a.status === '납품대기' ? -1 : 1) || String(a.due).localeCompare(String(b.due)));
+  }
+
+  function visibleRows() {
+    let out = rows;
+    if (state.chip !== '전체') out = out.filter(r => r.status === state.chip);
+    if (state.search) { const q = state.search.toLowerCase(); out = out.filter(r => [r.order_no, r.partner, r.item_name].some(v => String(v ?? '').toLowerCase().includes(q))); }
+    return out;
+  }
+
+  function renderStats() {
     const done = rows.filter(r => r.status === '납품완료');
-    return [
-      { label: '총 납품건수', value: num(rows.length), unit: '건', icon: 'truck', tint: 'brand' },
-      { label: '납품완료', value: num(done.length), unit: '건', icon: 'checkCircle', tint: 'green' },
-      { label: '출고예정', value: num(rows.length - done.length), unit: '건', icon: 'clock', tint: 'amber' },
-      { label: '총 납품금액', value: won(total), icon: 'dollar', tint: 'violet' },
-    ];
-  },
-  columns: [
-    { key: 'delivery_no', label: '납품번호', cls: 'cell-code', sortable: true },
-    { key: 'delivery_date', label: '납품일', type: 'date', sortable: true },
-    { key: 'order_no', label: '수주번호', cls: 'cell-code' },
-    { key: 'partner', label: '거래처' },
-    { key: 'item_name', label: '품명', cls: 'cell-strong' },
-    { key: 'delivery_qty', label: '납품수량', type: 'num', sortable: true },
-    { key: 'unit_price', label: '단가', type: 'money' },
-    { key: 'amount', label: '금액', type: 'money', sortable: true },
-    { key: 'status', label: '상태', type: 'badge', align: 'center' },
-  ],
-  fields: [
-    { key: 'delivery_no', label: '납품번호 (자동생성)', placeholder: '비워두면 자동 채번' },
-    { key: 'delivery_date', label: '납품일', type: 'date', required: true, default: todayStr() },
-    { key: 'order_no', label: '수주 선택', ref: { table: 'sales_orders', value: 'order_no', label: (r) => `${r.order_no} · ${r.partner} · ${r.item_name}`, fill: { partner: 'partner', item_code: 'item_code', item_name: 'item_name', unit_price: 'unit_price' } }, placeholder: '수주 선택' },
-    { key: 'partner', label: '거래처(자동)', required: true, readonly: true },
-    { key: 'item_code', label: '품목코드(자동)', readonly: true },
-    { key: 'item_name', label: '품명(자동)', required: true, readonly: true },
-    { key: 'delivery_qty', label: '납품수량', type: 'number', required: true, default: 0 },
-    { key: 'unit_price', label: '단가', type: 'number', default: 0 },
-    { key: 'amount', label: '금액(자동)', type: 'number', readonly: true, default: 0 },
-    { key: 'status', label: '상태', type: 'select', options: ['출고예정', '납품완료'], default: '납품완료' },
-    { key: 'remark', label: '비고', type: 'textarea' },
-  ],
-});
+    const wait = rows.filter(r => r.status === '납품대기');
+    const delayed = rows.filter(r => r.status === '납품대기' && r.delayed);
+    const amount = done.reduce((s, r) => s + r.amount, 0);
+    root.querySelector('#dlv-stats').innerHTML = `<div class="stat-grid">
+      ${statCard('납품완료', num(done.length), '건', 'checkCircle', 'green')}
+      ${statCard('납품예정', num(wait.length), '건', 'clock', 'amber')}
+      ${statCard('총 납품금액', won(amount), '', 'dollar', 'violet')}
+      ${statCard('지연', num(delayed.length), '건', 'alert', 'red')}
+    </div>`;
+  }
+
+  function renderChips() {
+    const wrap = root.querySelector('#dlv-chips');
+    const opts = ['전체', '납품대기', '납품완료'];
+    wrap.innerHTML = opts.map(o => {
+      const c = o === '전체' ? rows.length : rows.filter(r => r.status === o).length;
+      return `<button class="chip ${state.chip === o ? 'active' : ''}" data-chip="${o}">${o}<span class="chip__count">${c}</span></button>`;
+    }).join('');
+    wrap.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { state.chip = b.dataset.chip; state.selected.clear(); renderChips(); renderTable(); updateBtn(); });
+  }
+
+  function renderTable() {
+    const list = visibleRows();
+    const slot = root.querySelector('#dlv-table');
+    if (!list.length) { slot.innerHTML = `<div class="empty" style="padding:60px 20px">${icon('truck', 52)}<h4>표시할 납품 건이 없습니다</h4><p>생산이 완료된 수주가 여기에 표시됩니다.</p></div>`; return; }
+    slot.innerHTML = `<table class="grid"><thead><tr>
+      <th class="center" style="width:40px"><input type="checkbox" class="checkbox" id="dlv-all"></th>
+      <th>수주번호</th><th>거래처</th><th>품명</th><th class="num">수량</th>
+      <th class="center">납기예정일</th><th class="center">납품완료일</th><th class="num">금액</th>
+      <th class="center">납기상태</th><th class="center">상태</th>
+    </tr></thead><tbody>${list.map(r => `
+      <tr data-order="${escapeHtml(r.order_no)}">
+        <td class="center">${r.status === '납품대기' ? `<input type="checkbox" class="checkbox" data-sel="${escapeHtml(r.order_no)}" ${state.selected.has(r.order_no) ? 'checked' : ''}>` : ''}</td>
+        <td class="cell-code">${escapeHtml(r.order_no)}</td>
+        <td>${escapeHtml(r.partner || '')}</td>
+        <td class="cell-strong">${escapeHtml(r.item_name || '')}</td>
+        <td class="num mono">${num(r.qty)}</td>
+        <td class="center">${r.due ? fmtDate(r.due) : '-'}</td>
+        <td class="center">${r.completeDate ? fmtDate(r.completeDate) : '<span class="muted">-</span>'}</td>
+        <td class="num mono">${won(r.amount)}</td>
+        <td class="center">${r.delayed ? badge('지연', 'danger') : badge('정상', 'success')}</td>
+        <td class="center">${r.status === '납품완료' ? badge('납품완료', 'success') : badge('납품대기', 'neutral')}</td>
+      </tr>`).join('')}</tbody></table>`;
+
+    const all = slot.querySelector('#dlv-all');
+    const boxes = [...slot.querySelectorAll('[data-sel]')];
+    const syncAll = () => { if (all) { all.checked = boxes.length > 0 && boxes.every(b => b.checked); all.indeterminate = !all.checked && boxes.some(b => b.checked); } };
+    if (all) all.onchange = () => { boxes.forEach(b => { b.checked = all.checked; b.checked ? state.selected.add(b.dataset.sel) : state.selected.delete(b.dataset.sel); }); updateBtn(); };
+    boxes.forEach(b => b.onchange = () => { b.checked ? state.selected.add(b.dataset.sel) : state.selected.delete(b.dataset.sel); syncAll(); updateBtn(); });
+    syncAll();
+  }
+
+  function updateBtn() {
+    const n = state.selected.size;
+    root.querySelector('#dlv-complete').disabled = n === 0;
+    root.querySelector('#dlv-cnt').textContent = n ? `(${n})` : '';
+  }
+
+  async function completeSelected() {
+    const sel = rows.filter(r => state.selected.has(r.order_no) && r.status === '납품대기');
+    if (!sel.length) return;
+    const ok = await confirmDialog({ title: '납품완료 처리', message: `선택한 ${sel.length}건을 납품완료 처리하시겠습니까?\n납품완료일은 오늘(${today})로 기록됩니다.`, confirmText: '납품완료', danger: false });
+    if (!ok) return;
+    try {
+      const used = (await db.all('deliveries', {})).map(x => x.delivery_no);
+      for (const r of sel) {
+        const no = nextDocNo('DL', used); used.push(no);
+        await db.insert('deliveries', { delivery_no: no, delivery_date: today, order_no: r.order_no, partner: r.partner, item_code: r.item_code, item_name: r.item_name, delivery_qty: r.qty, unit_price: r.unit_price, amount: r.amount, status: '납품완료' });
+      }
+      toast(`${sel.length}건 납품완료 처리되었습니다.`);
+      state.selected.clear();
+      await reload();
+    } catch (e) { toast(e.message || '처리 실패', 'error'); }
+  }
+
+  async function reload() { await loadData(); renderStats(); renderChips(); renderTable(); updateBtn(); }
+
+  root.querySelector('#dlv-refresh').onclick = () => reload();
+  root.querySelector('#dlv-complete').onclick = () => completeSelected();
+  root.querySelector('#dlv-search').addEventListener('input', debounce((e) => { state.search = e.target.value.trim(); renderTable(); }));
+
+  try { await reload(); }
+  catch (e) { root.querySelector('#dlv-table').innerHTML = `<div class="empty" style="padding:60px">${icon('alert', 48)}<h4>불러오기 실패</h4><p>${escapeHtml(e.message || e)}</p></div>`; }
+}
+
+function statCard(label, value, unit, ic, tint) {
+  return `<div class="stat"><div class="stat__top"><span class="stat__label">${escapeHtml(label)}</span>
+    <span class="stat__ico ico-tint-${tint}">${icon(ic, 21)}</span></div>
+    <div class="stat__value">${value}${unit ? `<small>${escapeHtml(unit)}</small>` : ''}</div></div>`;
+}

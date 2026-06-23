@@ -144,17 +144,26 @@ export const SEED = {
     { order_no: 'SO-2406-001', order_date: d(-5), partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', spec: '120x80x15', unit: 'EA', order_qty: 500, unit_price: 12000, amount: 6000000, due_date: d(10), status: '생산중' },
     { order_no: 'SO-2406-002', order_date: d(-3), partner: '삼우테크', item_code: 'P-1002', item_name: '커버 하우징', spec: 'Ø95 H40', unit: 'EA', order_qty: 300, unit_price: 18500, amount: 5550000, due_date: d(14), status: '접수' },
     { order_no: 'SO-2406-003', order_date: d(-1), partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', spec: '120x80x15', unit: 'EA', order_qty: 200, unit_price: 12000, amount: 2400000, due_date: d(20), status: '접수' },
+    // 생산완료 수주 (납품관리 데모): SO-2405-001 납기초과(지연), SO-2405-002 납품완료
+    { order_no: 'SO-2405-001', order_date: d(-20), partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', spec: '120x80x15', unit: 'EA', order_qty: 300, unit_price: 12000, amount: 3600000, due_date: d(-2), status: '완료' },
+    { order_no: 'SO-2405-002', order_date: d(-15), partner: '삼우테크', item_code: 'P-1002', item_name: '커버 하우징', spec: 'Ø95 H40', unit: 'EA', order_qty: 200, unit_price: 18500, amount: 3700000, due_date: d(6), status: '완료' },
   ],
   deliveries: [
-    { delivery_no: 'DL-2406-001', delivery_date: d(-2), order_no: 'SO-2406-001', partner: '(주)현대정밀', item_code: 'P-1001', item_name: '브라켓 ASSY', delivery_qty: 200, unit_price: 12000, amount: 2400000, status: '납품완료' },
+    // SO-2405-002 는 납품완료(데모), SO-2405-001 은 미납(납품대기·지연)
+    { delivery_no: 'DL-2405-001', delivery_date: d(-1), order_no: 'SO-2405-002', partner: '삼우테크', item_code: 'P-1002', item_name: '커버 하우징', delivery_qty: 200, unit_price: 18500, amount: 3700000, status: '납품완료' },
   ],
   production_plans: [
     { plan_no: 'PP-2406-001', plan_date: d(-4), order_no: 'SO-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', plan_qty: 500, start_date: d(-3), end_date: d(7), line: '가공1라인', status: '진행' },
     { plan_no: 'PP-2406-002', plan_date: d(-2), order_no: 'SO-2406-002', item_code: 'P-1002', item_name: '커버 하우징', plan_qty: 300, start_date: d(1), end_date: d(12), line: '가공1라인', status: '계획' },
+    { plan_no: 'PP-2405-001', plan_date: d(-18), order_no: 'SO-2405-001', item_code: 'P-1001', item_name: '브라켓 ASSY', plan_qty: 300, start_date: d(-18), end_date: d(-3), line: '가공1라인', status: '완료' },
+    { plan_no: 'PP-2405-002', plan_date: d(-13), order_no: 'SO-2405-002', item_code: 'P-1002', item_name: '커버 하우징', plan_qty: 200, start_date: d(-13), end_date: d(-2), line: '가공1라인', status: '완료' },
   ],
   work_orders: [
     { wo_no: 'WO-2406-001', wo_date: d(-3), plan_no: 'PP-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', order_qty: 500, process: 'CNC 황삭', equipment: 'CNC-01', worker: '박생산', line: '가공1라인', start_date: d(-3), due_date: d(2), status: '작업중' },
     { wo_no: 'WO-2406-002', wo_date: d(-3), plan_no: 'PP-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', order_qty: 500, process: 'CNC 정삭', equipment: 'CNC-02', worker: '박생산', line: '가공1라인', start_date: d(-1), due_date: d(4), status: '대기' },
+    // 생산완료 작업지시 (납품관리 데모용)
+    { wo_no: 'WO-2405-001', wo_date: d(-18), plan_no: 'PP-2405-001', item_code: 'P-1001', item_name: '브라켓 ASSY', order_qty: 300, process: '조립', equipment: 'ASSY-01', worker: '박생산', line: '가공1라인', start_date: d(-18), due_date: d(-3), status: '완료' },
+    { wo_no: 'WO-2405-002', wo_date: d(-13), plan_no: 'PP-2405-002', item_code: 'P-1002', item_name: '커버 하우징', order_qty: 200, process: '조립', equipment: 'ASSY-01', worker: '박생산', line: '가공1라인', start_date: d(-13), due_date: d(-2), status: '완료' },
   ],
   production_results: [
     { result_no: 'PR-2406-001', result_date: d(-2), wo_no: 'WO-2406-001', item_code: 'P-1001', item_name: '브라켓 ASSY', process: 'CNC 황삭', equipment: 'CNC-01', worker: '박생산', good_qty: 240, defect_qty: 10, work_time: 480, status: '완료' },

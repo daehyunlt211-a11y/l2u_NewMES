@@ -127,27 +127,34 @@ insert into sales_orders (order_no, order_date, partner, item_code, item_name, s
   ('SO-2406-002', current_date-3, '삼우테크','P-1002','커버 하우징','Ø95 H40','EA',300,18500,5550000, current_date+14,'접수'),
   ('SO-2406-003', current_date-1, '(주)현대정밀','P-1001','브라켓 ASSY','120x80x15','EA',200,12000,2400000, current_date+20,'접수'),
   ('SO-2406-004', current_date-2, '삼우테크','P-1002','커버 하우징','Ø95 H40','EA',150,18500,2775000, current_date+18,'접수'),
-  ('SO-2406-005', current_date-6, '(주)현대정밀','S-2001','가공 브라켓','120x80','EA',400,6000,2400000, current_date+9,'완료')
+  ('SO-2406-005', current_date-6, '(주)현대정밀','S-2001','가공 브라켓','120x80','EA',400,6000,2400000, current_date+9,'완료'),
+  ('SO-2405-001', current_date-20, '(주)현대정밀','P-1001','브라켓 ASSY','120x80x15','EA',300,12000,3600000, current_date-2,'완료'),
+  ('SO-2405-002', current_date-15, '삼우테크','P-1002','커버 하우징','Ø95 H40','EA',200,18500,3700000, current_date+6,'완료')
 on conflict (order_no) do nothing;
 
 -- ---------- 2-2 납품 ----------
 insert into deliveries (delivery_no, delivery_date, order_no, partner, item_code, item_name, delivery_qty, unit_price, amount, status) values
   ('DL-2406-001', current_date-2, 'SO-2406-001','(주)현대정밀','P-1001','브라켓 ASSY',200,12000,2400000,'납품완료'),
-  ('DL-2406-002', current_date-1, 'SO-2406-005','(주)현대정밀','S-2001','가공 브라켓',400,6000,2400000,'납품완료')
+  ('DL-2406-002', current_date-1, 'SO-2406-005','(주)현대정밀','S-2001','가공 브라켓',400,6000,2400000,'납품완료'),
+  ('DL-2405-001', current_date-1, 'SO-2405-002','삼우테크','P-1002','커버 하우징',200,18500,3700000,'납품완료')
 on conflict (delivery_no) do nothing;
 
 -- ---------- 3-1 생산계획 ----------
 insert into production_plans (plan_no, plan_date, order_no, item_code, item_name, plan_qty, start_date, end_date, line, status) values
   ('PP-2406-001', current_date-4, 'SO-2406-001','P-1001','브라켓 ASSY',500, current_date-3, current_date+7,'가공1라인','진행'),
   ('PP-2406-002', current_date-2, 'SO-2406-002','P-1002','커버 하우징',300, current_date+1, current_date+12,'가공1라인','계획'),
-  ('PP-2406-003', current_date-1, 'SO-2406-003','P-1001','브라켓 ASSY',200, current_date+2, current_date+15,'가공2라인','계획')
+  ('PP-2406-003', current_date-1, 'SO-2406-003','P-1001','브라켓 ASSY',200, current_date+2, current_date+15,'가공2라인','계획'),
+  ('PP-2405-001', current_date-18, 'SO-2405-001','P-1001','브라켓 ASSY',300, current_date-18, current_date-3,'가공1라인','완료'),
+  ('PP-2405-002', current_date-13, 'SO-2405-002','P-1002','커버 하우징',200, current_date-13, current_date-2,'가공1라인','완료')
 on conflict (plan_no) do nothing;
 
 -- ---------- 3-2 작업지시 ----------
 insert into work_orders (wo_no, wo_date, plan_no, item_code, item_name, order_qty, process, equipment, worker, line, start_date, due_date, status) values
   ('WO-2406-001', current_date-3, 'PP-2406-001','P-1001','브라켓 ASSY',500,'CNC 황삭','MCT 머시닝센터 1호기','박생산','가공1라인', current_date-3, current_date+2,'작업중'),
   ('WO-2406-002', current_date-3, 'PP-2406-001','P-1001','브라켓 ASSY',500,'CNC 정삭','MCT 머시닝센터 2호기','박생산','가공1라인', current_date-1, current_date+4,'대기'),
-  ('WO-2406-003', current_date-1, 'PP-2406-002','P-1002','커버 하우징',300,'CNC 황삭','MCT 머시닝센터 1호기','박생산','가공1라인', current_date+1, current_date+8,'대기')
+  ('WO-2406-003', current_date-1, 'PP-2406-002','P-1002','커버 하우징',300,'CNC 황삭','MCT 머시닝센터 1호기','박생산','가공1라인', current_date+1, current_date+8,'대기'),
+  ('WO-2405-001', current_date-18, 'PP-2405-001','P-1001','브라켓 ASSY',300,'조립','조립스테이션 1호','박생산','가공1라인', current_date-18, current_date-3,'완료'),
+  ('WO-2405-002', current_date-13, 'PP-2405-002','P-1002','커버 하우징',200,'조립','조립스테이션 1호','박생산','가공1라인', current_date-13, current_date-2,'완료')
 on conflict (wo_no) do nothing;
 
 -- ---------- 3-3 생산실적 ----------
