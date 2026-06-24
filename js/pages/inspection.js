@@ -6,6 +6,38 @@ import { num, fmtDate, todayStr, escapeHtml, nextDocNo, downloadCSV } from '../l
 import { badge, toast, openModal, confirmDialog } from '../ui/components.js';
 import { icon } from '../ui/icons.js';
 
+// 기간검색 툴바 HTML + 이벤트 바인딩 (수입/출하검사 공용)
+function dateRangeHTML(label) {
+  return `<div class="date-range" title="${label} 기간 조회">
+    <span class="date-range__label">${icon('calendar', 14)} ${label}</span>
+    <select class="select" data-dr-preset style="width:auto;min-width:96px">
+      <option value="">기간 전체</option><option value="today">오늘</option><option value="7">최근 7일</option><option value="30">최근 30일</option><option value="month">이번 달</option>
+    </select>
+    <input class="input input--date" type="date" data-dr-from aria-label="시작일"><span class="date-range__sep">~</span><input class="input input--date" type="date" data-dr-to aria-label="종료일"></div>`;
+}
+function wireDateRange(scope, state, onChange) {
+  const fromEl = scope.querySelector('[data-dr-from]'), toEl = scope.querySelector('[data-dr-to]'), presetEl = scope.querySelector('[data-dr-preset]');
+  if (!fromEl) return;
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const apply = () => { state.from = fromEl.value; state.to = toEl.value; onChange(); };
+  fromEl.addEventListener('change', () => { presetEl.value = ''; apply(); });
+  toEl.addEventListener('change', () => { presetEl.value = ''; apply(); });
+  presetEl.addEventListener('change', () => {
+    const v = presetEl.value, now = new Date(); let f = '', t = '';
+    if (v === 'today') { f = t = iso(now); }
+    else if (v === '7') { const d = new Date(now); d.setDate(d.getDate() - 6); f = iso(d); t = iso(now); }
+    else if (v === '30') { const d = new Date(now); d.setDate(d.getDate() - 29); f = iso(d); t = iso(now); }
+    else if (v === 'month') { f = iso(new Date(now.getFullYear(), now.getMonth(), 1)); t = iso(now); }
+    fromEl.value = f; toEl.value = t; apply();
+  });
+}
+function inDateRange(dateStr, state) {
+  const d = String(dateStr || '').slice(0, 10);
+  if (state.from && d < state.from) return false;
+  if (state.to && d > state.to) return false;
+  return true;
+}
+
 // 정량 판정: 측정값이 규격값 ± 공차 범위 내이면 OK
 function judgeQuant(spec, tol, measured) {
   const s = parseFloat(spec);
@@ -18,7 +50,7 @@ function judgeQuant(spec, tol, measured) {
 export function createInspectionPage(cfg) {
   // cfg: { table, kind, title, subtitle, docPrefix, sourceTable, sourceKey, sourceLabel, sourceFill, extraKey, extraLabel }
   return async function render(root) {
-    const state = { search: '', result: '__all__' };
+    const state = { search: '', result: '__all__', from: '', to: '' };
 
     root.innerHTML = `
       <div class="page-head">
@@ -33,8 +65,9 @@ export function createInspectionPage(cfg) {
       <div class="card">
         <div class="toolbar">
           <div class="search-box grow">${icon('search', 16)}<input id="ins-search" placeholder="검사번호·품목·거래처 검색" autocomplete="off"/></div>
-          <div class="chips" id="ins-chips"></div>
+          ${dateRangeHTML('검사일')}
         </div>
+        <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="ins-chips"></div></div>
         <div class="table-wrap"><div id="ins-table"><div class="spinner"></div></div></div>
       </div>`;
 
@@ -42,6 +75,7 @@ export function createInspectionPage(cfg) {
     root.querySelector('#ins-new').onclick = () => openInspectionForm();
     root.querySelector('#ins-csv').onclick = () => exportCsv();
     root.querySelector('#ins-search').addEventListener('input', (e) => { state.search = e.target.value.trim(); renderTable(); });
+    wireDateRange(root, state, () => { renderStats(); renderTable(); });
 
     let rows = [];
 
@@ -52,21 +86,24 @@ export function createInspectionPage(cfg) {
       renderStats(); renderChips(); renderTable();
     }
 
-    function filtered() {
+    // 검색 + 기간(검사일) 적용
+    function scoped() {
       const q = state.search.toLowerCase();
-      return rows.filter(r =>
-        (state.result === '__all__' || r.result === state.result) &&
-        (!q || [r.inspect_no, r.item_code, r.item_name, r.partner].some(v => String(v ?? '').toLowerCase().includes(q)))
-      );
+      return rows.filter(r => inDateRange(r.inspect_date, state) &&
+        (!q || [r.inspect_no, r.item_code, r.item_name, r.partner].some(v => String(v ?? '').toLowerCase().includes(q))));
+    }
+    function filtered() {
+      return scoped().filter(r => state.result === '__all__' || r.result === state.result);
     }
 
     function renderStats() {
-      const pass = rows.filter(r => r.result === '합격').length;
-      const rate = rows.length ? ((pass / rows.length) * 100).toFixed(1) : '0.0';
+      const base = scoped();
+      const pass = base.filter(r => r.result === '합격').length;
+      const rate = base.length ? ((pass / base.length) * 100).toFixed(1) : '0.0';
       root.querySelector('#ins-stats').innerHTML = `<div class="stat-grid">
-        ${stat('총 검사건수', num(rows.length), '건', 'shield', 'brand')}
+        ${stat('총 검사건수', num(base.length), '건', 'shield', 'brand')}
         ${stat('합격', num(pass), '건', 'checkCircle', 'green')}
-        ${stat('불합격', num(rows.filter(r => r.result === '불합격').length), '건', 'alert', 'red')}
+        ${stat('불합격', num(base.filter(r => r.result === '불합격').length), '건', 'alert', 'red')}
         ${stat('합격률', rate, '%', 'trendUp', 'violet')}</div>`;
     }
 
@@ -401,20 +438,21 @@ export async function openInspectionModal(opts) {
 
 // 출하검사 — 생산완료 수주 리스트 + 행별 [출하검사] 버튼 (납품관리와 동일한 대상)
 export async function shippingInspection(root) {
-  const state = { search: '', chip: '전체' };
+  const state = { search: '', chip: '전체', from: '', to: '' };
   root.innerHTML = `
     <div class="page-head">
-      <div class="page-head__text"><h1>출하검사</h1><p>생산이 완료된 수주를 대상으로 출하검사를 진행합니다.</p></div>
+      <div class="page-head__text"><h1>출하검사</h1><p>생산이 완료된 수주를 대상으로 출하검사를 진행합니다. (기간검색은 검사일 기준)</p></div>
       <div class="page-head__actions"><button class="btn" id="si-refresh">${icon('refresh', 16)} 새로고침</button></div>
     </div>
     <div id="si-stats"></div>
     <div class="card">
-      <div class="toolbar"><div class="search-box grow">${icon('search', 16)}<input id="si-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div></div>
+      <div class="toolbar"><div class="search-box grow">${icon('search', 16)}<input id="si-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div>${dateRangeHTML('검사일')}</div>
       <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="si-chips"></div></div>
       <div class="table-wrap"><div id="si-table"><div class="spinner"></div></div></div>
     </div>`;
   root.querySelector('#si-refresh').onclick = () => reload();
   root.querySelector('#si-search').addEventListener('input', (e) => { state.search = e.target.value.trim(); renderTable(); });
+  wireDateRange(root, state, () => renderTable());
 
   let rows = [];
   async function loadData() {
@@ -437,6 +475,7 @@ export async function shippingInspection(root) {
     let out = rows;
     if (state.chip === '미검사') out = out.filter(r => !r.inspected);
     else if (state.chip === '검사완료') out = out.filter(r => r.inspected);
+    if (state.from || state.to) out = out.filter(r => r.inspected && inDateRange(r.inspect_date, state)); // 기간 지정 시 해당 기간 검사완료 건만
     if (state.search) { const q = state.search.toLowerCase(); out = out.filter(r => [r.order_no, r.partner, r.item_name].some(v => String(v ?? '').toLowerCase().includes(q))); }
     return out;
   }
