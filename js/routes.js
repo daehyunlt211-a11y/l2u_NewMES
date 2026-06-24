@@ -18,6 +18,7 @@ import { toolStock } from './pages/toolStock.js';
 import * as ai from './pages/ai.js';
 import { rfidTags, rfidEvents, rfidTrace } from './pages/rfid.js';
 import { incomingStatus, shippingStatus, salesStatus, deliveryStatus } from './pages/statusView.js';
+import { salesForecast } from './pages/salesForecast.js';
 
 // 사이드바 메뉴 트리 (group icon + 하위 항목)
 export const MENU = [
@@ -38,6 +39,7 @@ export const MENU = [
   },
   {
     id: 'sales', label: '영업관리', icon: 'cart', children: [
+      { label: 'AI 수주예측', path: '/sales/forecast' },
       { label: '수주관리', path: '/sales/orders' },
       { label: '수주현황', path: '/sales/order-status' },
       { label: '납품관리', path: '/sales/deliveries' },
@@ -112,6 +114,7 @@ export const ROUTES = {
   '/base/tools': { render: base.tools, title: '공구관리', group: '기준정보관리' },
   '/base/equipments': { render: base.equipments, title: '설비관리', group: '기준정보관리' },
 
+  '/sales/forecast': { render: salesForecast, title: 'AI 수주예측', group: '영업관리' },
   '/sales/orders': { render: sales.salesOrders, title: '수주관리', group: '영업관리' },
   '/sales/order-status': { render: salesStatus, title: '수주현황', group: '영업관리' },
   '/sales/deliveries': { render: sales.deliveries, title: '납품관리', group: '영업관리' },

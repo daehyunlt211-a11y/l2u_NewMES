@@ -12,6 +12,7 @@ const DAY = 86400000;
 const today = () => new Date(todayStr());
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / DAY);
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+const addDays = (dateStr, n) => { const d = new Date(dateStr); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 // 문자열 → 안정적 의사난수(0~1). 데모 센서값 합성용(동일 입력 → 동일 출력)
 function seedRand(str, salt = 0) {
@@ -300,4 +301,61 @@ export async function dailyReport() {
       defects.summary.trendPct > 20 ? '품질 변경점(4M) 점검 회의' : null,
     ].filter(Boolean),
   };
+}
+
+// =====================================================================
+// 영업 — AI 수주 예측 (거래처×품목 주문주기 분석)
+//  과거 수주 이력에서 거래처-품목별 평균 주문주기를 분석해
+//  "어떤 거래처가 어떤 품목을 언제 수주할 확률"을 예측한다.
+// =====================================================================
+export async function forecastOrders() {
+  const orders = (await db.all('sales_orders', {})).filter(o => o.order_date && o.partner && o.item_code);
+  const t0 = today();
+  const groups = {};
+  for (const o of orders) {
+    const k = o.partner + '||' + o.item_code;
+    (groups[k] ??= { partner: o.partner, item_code: o.item_code, item_name: o.item_name, dates: [], qtys: [], prices: [] });
+    groups[k].dates.push(String(o.order_date).slice(0, 10));
+    groups[k].qtys.push(+o.order_qty || 0);
+    groups[k].prices.push(+o.unit_price || 0);
+  }
+
+  const items = Object.values(groups).map(g => {
+    g.dates.sort();
+    const n = g.dates.length;
+    const last = g.dates[n - 1];
+    const avgQty = Math.round(g.qtys.reduce((a, b) => a + b, 0) / n);
+    const avgPrice = Math.round(g.prices.reduce((a, b) => a + b, 0) / n);
+    let predDate, prob, interval, std = 0, reason;
+    if (n >= 2) {
+      const ivs = [];
+      for (let i = 1; i < n; i++) ivs.push(Math.max(1, daysBetween(g.dates[i - 1], g.dates[i])));
+      const mean = ivs.reduce((a, b) => a + b, 0) / ivs.length;
+      interval = Math.round(mean);
+      std = Math.sqrt(ivs.reduce((a, b) => a + (b - mean) ** 2, 0) / ivs.length);
+      const regularity = clamp(1 - (mean ? std / mean : 1), 0, 1);           // 주기 일관성
+      predDate = addDays(last, interval);
+      const daysToPred = daysBetween(t0, predDate);
+      const recency = clamp(1 - Math.abs(daysToPred) / Math.max(interval, 1) * 0.5, 0.3, 1);
+      const freqBoost = clamp(n / 8, 0, 0.3);                                 // 누적 주문수 가산
+      prob = Math.round(clamp(regularity * 0.6 + recency * 0.25 + freqBoost, 0.1, 0.97) * 100);
+      reason = `과거 ${n}회 수주 · 평균주기 ${interval}일(±${Math.round(std)}일)`;
+    } else {
+      interval = null;
+      predDate = addDays(last, 30);
+      prob = 30;
+      reason = '과거 1회 수주 · 표준주기(30일) 가정';
+    }
+    return { partner: g.partner, item_code: g.item_code, item_name: g.item_name, count: n, lastDate: last, predDate, daysToPred: daysBetween(t0, predDate), avgQty, avgPrice, prob, interval, std: Math.round(std), reason };
+  });
+
+  items.sort((a, b) => b.prob - a.prob || a.daysToPred - b.daysToPred);
+  const summary = {
+    total: items.length,
+    within7: items.filter(i => i.daysToPred >= 0 && i.daysToPred <= 7).length,
+    within30: items.filter(i => i.daysToPred >= -3 && i.daysToPred <= 30).length,
+    high: items.filter(i => i.prob >= 70).length,
+    avgProb: items.length ? Math.round(items.reduce((s, i) => s + i.prob, 0) / items.length) : 0,
+  };
+  return { items, summary };
 }
