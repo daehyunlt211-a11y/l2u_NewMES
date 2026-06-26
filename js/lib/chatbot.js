@@ -7,6 +7,7 @@
 // =====================================================================
 import { db } from './db.js';
 import { predictDelays, analyzeDefects, predictInventory, detectEquipmentAnomaly, RISK_LABEL } from './ai.js';
+import { ragRetrieve, ragAnswer } from './rag.js';
 import { num, todayStr, escapeHtml } from './format.js';
 
 export const CHAT_SUGGESTIONS = ['오늘 생산량', '지연 위험 작업지시', '재고 부족 자재', '설비 이상 있어?', 'LOT-WIP-001 추적', '불량 현황'];
@@ -34,8 +35,8 @@ function classify(lower) {
     for (const k of it.kw) if (lower.includes(k)) s += k.length >= 3 ? 2 : 1;
     if (s > bestScore) { bestScore = s; best = it.id; }
   }
-  // LOT/품목코드 토큰이 있으면 RFID 우선
-  if (/lot[-\w]*|[a-z]-?\d{3,}/i.test(lower) && bestScore <= 2) return 'rfid';
+  // LOT 토큰이 있고 다른 의도가 약하면 RFID 추적 우선 (일반 코드는 RAG가 처리)
+  if (/lot[-\w]*/i.test(lower) && bestScore <= 2) return 'rfid';
   return best || 'fallback';
 }
 
@@ -45,18 +46,19 @@ export async function chatAnswer(qRaw) {
   const lower = q.toLowerCase();
   const intent = classify(lower);
   try {
-    switch (intent) {
-      case 'production': return await ansProduction();
-      case 'delay': return await ansDelay();
-      case 'defect': return await ansDefect();
-      case 'inventory': return await ansInventory();
-      case 'equipment': return await ansEquipment();
-      case 'workorder': return await ansWorkOrder();
-      case 'sales': return await ansSales();
-      case 'rfid': return await ansRfid(q, lower);
-      case 'help': return ansHelp();
-      default: return ansFallback();
-    }
+    // 1) 도움말 / RFID 추적(전용 타임라인)은 그대로
+    if (intent === 'help') return ansHelp();
+    if (intent === 'rfid') return await ansRfid(q, lower);
+    // 2) RAG 검색: 특정 개체(코드·거래처·품목 등) 질의는 검색 근거로 답변
+    const rag = await ragRetrieve(q);
+    const strong = rag.length && rag[0].score >= 4;
+    const analytical = { production: ansProduction, delay: ansDelay, defect: ansDefect, inventory: ansInventory, equipment: ansEquipment, workorder: ansWorkOrder, sales: ansSales };
+    if (strong) return ragAnswer(q, rag);
+    // 3) 집계형 질문은 인텔리전스 분석으로
+    if (analytical[intent]) return await analytical[intent]();
+    // 4) 그 외 자유질의도 RAG로 답변
+    if (rag.length) return ragAnswer(q, rag);
+    return ansFallback();
   } catch (e) {
     return { html: `데이터를 불러오지 못했습니다.<br><span class="muted">${escapeHtml(e.message || e)}</span>`, suggestions: CHAT_SUGGESTIONS };
   }
@@ -181,16 +183,16 @@ async function ansRfid(q, lower) {
 
 function ansHelp() {
   return {
-    html: `안녕하세요! 저는 <b>AI 데이터 비서</b>입니다 🤖<br>현장 데이터를 바로 조회해 드려요. 이런 걸 물어보세요:` +
+    html: `안녕하세요! 저는 <b>AI 데이터 비서</b>입니다 🤖<br>집계 분석은 물론, <b>특정 항목 검색(RAG)</b>도 가능해요. 이런 걸 물어보세요:` +
       ul([
-        '"오늘 생산량" — 금일 생산·수율',
-        '"지연 위험 작업지시" — 납기 지연 예측',
-        '"재고 부족 자재" — 발주 필요 품목',
-        '"설비 이상 있어?" — 예지보전 진단',
-        '"불량 현황" — 품질/원인 분석',
-        '"LOT-WIP-001 추적" — RFID 이동경로',
+        '"오늘 생산량" · "지연 위험 작업지시" — 집계 분석',
+        '"재고 부족 자재" · "설비 이상 있어?" · "불량 현황"',
+        '<b>"SO-2406-001"</b> — 특정 수주 조회',
+        '<b>"현대정밀 수주"</b> — 거래처별 검색',
+        '<b>"브라켓 ASSY"</b> — 품목 관련 전체(재고·검사·불량…)',
+        '<b>"CNC-01"</b> · <b>"LOT-WIP-001 추적"</b>',
       ]),
-    suggestions: CHAT_SUGGESTIONS,
+    suggestions: [...CHAT_SUGGESTIONS, '브라켓 ASSY'],
   };
 }
 

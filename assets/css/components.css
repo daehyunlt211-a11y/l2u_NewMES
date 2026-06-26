@@ -643,3 +643,8 @@ table.grid tbody tr.is-selected:hover { background: var(--brand-50); }
 .cal-ev--actual { background: rgba(22,163,74,.14); color: #16a34a; }
 .cal-more { font-size: 10px; color: var(--text-3); padding-left: 2px; }
 @media (max-width: 760px) { .cal-cell { min-height: 64px; } .cal-ev { font-size: 9.5px; } }
+
+/* 챗봇 RAG 검색 결과 */
+.chat-rag-group { margin-top: 8px; }
+.chat-rag-label { font-size: 11.5px; font-weight: 700; color: var(--brand); margin: 6px 0 2px; }
+.chat-rag-src { margin-top: 8px; font-size: 11px; color: var(--text-3); border-top: 1px dashed var(--border); padding-top: 6px; }
