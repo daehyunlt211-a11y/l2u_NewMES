@@ -8,7 +8,7 @@
 import { db } from './db.js';
 import { predictDelays, analyzeDefects, predictInventory, detectEquipmentAnomaly, RISK_LABEL } from './ai.js';
 import { ragRetrieve, ragAnswer } from './rag.js';
-import { num, todayStr, escapeHtml } from './format.js';
+import { num, todayStr, fmtDate, escapeHtml } from './format.js';
 
 export const CHAT_SUGGESTIONS = ['오늘 생산량', '지연 위험 작업지시', '재고 부족 자재', '설비 이상 있어?', 'LOT-WIP-001 추적', '불량 현황'];
 
@@ -48,6 +48,8 @@ export async function chatAnswer(qRaw) {
   try {
     // 1) 도움말 / RFID 추적(전용 타임라인)은 그대로
     if (intent === 'help') return ansHelp();
+    // 납품 지연/미납 — 계산 상태이므로 전용 처리 (RAG로는 못 찾음)
+    if (/납품|출하|배송|미납/.test(q) && /지연|늦|밀|미납|안.?된|안.?나|못.?받/.test(lower)) return await ansDeliveryDelay();
     if (intent === 'rfid') return await ansRfid(q, lower);
     // 2) RAG 검색: 특정 개체(코드·거래처·품목 등) 질의는 검색 근거로 답변
     const rag = await ragRetrieve(q);
@@ -93,6 +95,30 @@ async function ansDelay() {
     html: `⚠️ <b>생산지연 위험</b> (납기초과 ${summary.critical} · 높음 ${summary.high} · 보통 ${summary.medium})` +
       ul(top.map(i => `${escapeHtml(i.wo.item_name || i.wo.wo_no)} — <b>${RISK_LABEL[i.risk]}</b> (진척 ${i.progress}%, 잔량 ${num(i.remaining)})<br><span class="muted">→ ${escapeHtml(i.rec)}</span>`)),
     suggestions: ['설비 이상 있어?', '재고 부족 자재'],
+  };
+}
+
+// 납품 지연(미납·납기경과) — 생산완료 수주 중 납품완료 안 된 건이 납기 경과
+async function ansDeliveryDelay() {
+  const t = todayStr();
+  const [orders, plans, wos, dels] = await Promise.all([
+    db.all('sales_orders', {}), db.all('production_plans', {}), db.all('work_orders', {}), db.all('deliveries', {}),
+  ]);
+  const planByOrder = {}; for (const p of plans) (planByOrder[p.order_no] ??= []).push(p.plan_no);
+  const allWoComplete = (pns) => { const ws = wos.filter(w => pns.includes(w.plan_no)); return ws.length > 0 && ws.every(w => w.status === '완료'); };
+  const prodComplete = (o) => o.status === '완료' || allWoComplete(planByOrder[o.order_no] || []);
+  const delivered = new Set(dels.filter(d => d.status === '납품완료').map(d => d.order_no));
+  const delayed = orders.filter(prodComplete)
+    .filter(o => !delivered.has(o.order_no))
+    .map(o => ({ ...o, due: String(o.due_date || '').slice(0, 10) }))
+    .filter(o => o.due && o.due < t)
+    .sort((a, b) => a.due.localeCompare(b.due));
+  if (!delayed.length) return { html: `🚚 납기 경과된 <b>미납(납품지연) 건이 없습니다</b> ✅<br><span class="muted">생산완료 후 납기를 넘긴 미납 수주가 없습니다.</span>`, suggestions: ['납품 대기 목록', '오늘 생산량'] };
+  const day = (d) => Math.round((new Date(t) - new Date(d)) / 86400000);
+  return {
+    html: `🚚 <b>납품 지연</b> (납기 경과·미납) <b>${num(delayed.length)}건</b>` +
+      ul(delayed.map(o => `${escapeHtml(o.partner)} · ${escapeHtml(o.item_name || o.item_code)} ${num(o.order_qty)}EA · 납기 ${fmtDate(o.due)} <b style="color:var(--danger)">(${day(o.due)}일 경과)</b>`)),
+    suggestions: ['지연 위험 작업지시', '오늘 생산량'],
   };
 }
 

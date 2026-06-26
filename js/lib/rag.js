@@ -56,9 +56,17 @@ export async function ragIndex() {
   return docs;
 }
 
-const STOP = new Set(['알려줘', '보여줘', '뭐', '어떻게', '얼마', '있어', '있나', '해줘', '좀', '의', '를', '을', '는', '은', '이', '가', '에', '에서', '현황', '상태', '정보', '확인']);
+const STOP = new Set(['알려줘', '보여줘', '뭐', '어떻게', '얼마', '있어', '있나', '해줘', '좀', '리스트', '목록', '의', '를', '을', '는', '은', '이', '가', '에', '에서', '현황', '상태', '정보', '확인']);
+const PARTICLE = /(이|가|을|를|은|는|의|에|도|만|과|와|로|으로|에서|에게|한테|까지|부터|된|한)$/;
 function tokenize(q) {
-  return [...new Set(q.toLowerCase().split(/[\s,./?!()]+/).filter(Boolean).filter(t => !STOP.has(t)))];
+  const out = new Set();
+  for (const t of q.toLowerCase().split(/[\s,./?!()]+/).filter(Boolean)) {
+    if (STOP.has(t)) continue;
+    out.add(t);
+    const s = t.replace(PARTICLE, '');
+    if (s && s.length >= 2 && s !== t && !STOP.has(s)) out.add(s); // 조사 제거 변형(납품이→납품)
+  }
+  return [...out];
 }
 function tokenWeight(t) {
   if (/\d/.test(t) && t.length >= 3) return 5; // 코드/번호(SO-2406-001, P-1001 등)
