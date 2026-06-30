@@ -13,6 +13,7 @@
   --brand-300: #84a9ff;
   --brand-400: #5b85fa;
   --brand-500: #3b63f0;   /* primary */
+  --brand:     #3b63f0;   /* primary 별칭 (var(--brand) 사용처 호환) */
   --brand-600: #2c4ad6;
   --brand-700: #2339ab;
   --brand-800: #1f3186;
