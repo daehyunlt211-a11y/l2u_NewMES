@@ -19,6 +19,7 @@ import * as ai from './pages/ai.js';
 import { rfidTags, rfidEvents, rfidTrace } from './pages/rfid.js';
 import { incomingStatus, shippingStatus, salesStatus, deliveryStatus } from './pages/statusView.js';
 import { salesForecast } from './pages/salesForecast.js';
+import { designSpecHome, designSpecDetail } from './pages/designSpec.js';
 
 // 사이드바 메뉴 트리 (group icon + 하위 항목)
 export const MENU = [
@@ -151,5 +152,9 @@ export const ROUTES = {
   '/rfid/events': { render: rfidEvents, title: 'RFID 이동이력', group: 'RFID 추적' },
   '/rfid/trace': { render: rfidTrace, title: 'LOT 추적', group: 'RFID 추적' },
 };
+
+// 화면설계서 (메뉴 외 — 상단 버튼으로 진입)
+ROUTES['/spec'] = { render: designSpecHome, title: '화면설계서', group: '화면설계서' };
+ROUTES['/spec/view'] = { render: designSpecDetail, title: '화면설계서 상세', group: '화면설계서' };
 
 export const DEFAULT_ROUTE = '/dashboard';

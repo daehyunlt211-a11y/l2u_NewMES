@@ -57,6 +57,7 @@ function renderShell() {
         <div class="breadcrumb" id="breadcrumb"></div>
         <div class="topbar__spacer"></div>
         ${IS_DEMO ? `<span class="badge badge--warning" title="Supabase 미연결 — 브라우저에 임시 저장됩니다">데모 모드</span>` : `<span class="badge badge--success">Supabase 연결됨</span>`}
+        <button class="icon-btn" id="spec-btn" title="화면설계서">${icon('fileText', 19)}</button>
         <button class="icon-btn" id="chat-toggle" title="AI 비서 켜기/끄기"></button>
         <button class="icon-btn" id="theme-btn" title="테마 전환"></button>
         <button class="icon-btn" title="알림">${icon('bell', 19)}</button>
@@ -83,6 +84,7 @@ function renderShell() {
   };
   document.getElementById('scrim').onclick = () => { app.classList.remove('mobile-open'); document.getElementById('scrim').classList.remove('show'); };
   document.getElementById('theme-btn').onclick = toggleTheme;
+  document.getElementById('spec-btn').onclick = () => { location.hash = '#/spec'; };
   renderChatToggle();
   document.getElementById('chat-toggle').onclick = () => toggleChatbot();
   document.getElementById('user-avatar').onclick = (e) => { e.stopPropagation(); toggleUserMenu(); };
