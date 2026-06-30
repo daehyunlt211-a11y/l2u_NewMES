@@ -674,3 +674,32 @@ table.grid tbody tr.is-selected:hover { background: var(--brand-50); }
 .spec-list svg { color: var(--brand); }
 .spec-cols { display: flex; flex-wrap: wrap; gap: 7px; }
 .spec-col { padding: 6px 11px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; font-weight: 600; }
+
+/* ===================== 화면설계서 — 미리보기(와이어프레임) ===================== */
+.wf { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 7px; font-size: 12px; }
+.wf-bar { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+.wf-bar--head { background: var(--brand-50); }
+.wf-bar--soft { background: var(--surface); }
+.wf-bar--foot { justify-content: flex-end; color: var(--text-3); }
+.wf-bar .wf-r { margin-left: auto; color: var(--text-3); }
+.wf-pill { padding: 4px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); }
+.wf-chip { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); font-size: 11px; }
+.wf-grid { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.wf-gh { background: var(--surface); padding: 8px 11px; font-weight: 700; border-bottom: 1px solid var(--border); position: relative; }
+.wf-gr { padding: 9px 11px; border-bottom: 1px solid var(--border); position: relative; color: var(--text-2); }
+.wf-gr:last-child { border-bottom: 0; }
+.wf-gr .wf-r { margin-left: auto; }
+.wf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; position: relative; }
+.wf-st { height: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.wf-chart { height: 64px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--brand); letter-spacing: 3px; position: relative; }
+.wf-cards { display: flex; gap: 7px; position: relative; }
+.wf-card { flex: 1; height: 46px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.wf-md { display: grid; grid-template-columns: 38% 1fr; gap: 8px; }
+.wf-side, .wf-main { display: flex; flex-direction: column; gap: 6px; }
+.wf-li { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px; position: relative; color: var(--text-2); }
+.wf-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 10px; font-weight: 800; flex: 0 0 auto; margin-right: 2px; }
+
+.spec-num { display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 11px; font-weight: 800; }
+.spec-list--alert li { color: var(--text-2); }
+.spec-list--alert svg { color: var(--warning); }
+@media (max-width: 900px) { .wf-stats { grid-template-columns: repeat(2, 1fr); } }
