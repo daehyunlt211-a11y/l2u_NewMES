@@ -41,7 +41,7 @@
              #f4f6fb;
   --surface: #ffffff;
   --surface-2: #f8fafc;
-  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass: rgba(255, 255, 255, 0.97);
   --border: #e6e9f0;
   --border-strong: #d3d8e3;
 
@@ -80,7 +80,7 @@
              #0c111d;
   --surface: #151c2c;
   --surface-2: #1b2334;
-  --surface-glass: rgba(21, 28, 44, 0.72);
+  --surface-glass: rgba(21, 28, 44, 0.97);
   --border: #28324a;
   --border-strong: #38445f;
 
