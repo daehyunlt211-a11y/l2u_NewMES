@@ -698,6 +698,8 @@ table.grid tbody tr.is-selected:hover { background: var(--brand-50); }
 .wf-side, .wf-main { display: flex; flex-direction: column; gap: 6px; }
 .wf-li { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px; position: relative; color: var(--text-2); }
 .wf-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 10px; font-weight: 800; flex: 0 0 auto; margin-right: 2px; }
+/* 숫자 배지가 박스 그리드/플렉스 칸을 차지하지 않도록 코너에 오버레이 */
+.wf-stats > .wf-badge, .wf-cards > .wf-badge, .wf-chart > .wf-badge { position: absolute; top: -9px; left: -9px; margin: 0; z-index: 2; box-shadow: 0 0 0 2px var(--surface-2); }
 
 .spec-num { display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 11px; font-weight: 800; }
 .spec-list--alert li { color: var(--text-2); }
