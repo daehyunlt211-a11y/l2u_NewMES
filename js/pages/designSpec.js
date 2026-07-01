@@ -500,14 +500,14 @@ export async function designSpecDetail(root, params) {
     <div class="card" style="margin-bottom:16px"><div class="card__head">${icon('activity', 18)}<h3>화면 프로세스</h3></div>
       <div class="card__body">${flowRow(s.process || TYPE_PROC[s.type] || [], 'brand')}</div></div>
 
-    <div class="grid-2">
+    <div class="grid-2" style="margin-bottom:16px">
       <div class="card"><div class="card__head">${icon('layers', 18)}<h3>데이터 연관성 (타 화면 연동)</h3></div>
         <div class="card__body">${specTable(['항목', '가져오는 곳', '설명'], (s.relations || []).map(r => [`<b>${escapeHtml(r.field)}</b>`, `<span class="badge badge--info">${escapeHtml(r.from)}</span>`, escapeHtml(r.desc)]))}</div></div>
       <div class="card"><div class="card__head">${icon('sliders', 18)}<h3>드롭리스트 구성</h3></div>
         <div class="card__body">${specTable(['항목', '데이터 출처', '값/구성'], (s.dropdowns || []).map(d => [`<b>${escapeHtml(d.field)}</b>`, `<span class="cell-code">${escapeHtml(d.source)}</span>`, escapeHtml(d.values)]))}</div></div>
     </div>
 
-    <div class="grid-2">
+    <div class="grid-2" style="margin-bottom:16px">
       <div class="card"><div class="card__head">${icon('search', 18)}<h3>조회조건 · 기본조건</h3></div>
         <div class="card__body">
           <div class="muted" style="font-weight:700;font-size:12px;margin-bottom:5px">조회조건</div>

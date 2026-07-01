@@ -267,8 +267,8 @@ table.grid td.center, table.grid th.center { text-align: center; }
 [data-theme="dark"] .ico-tint-brand { background: rgba(59,99,240,0.16); color: var(--brand-300); }
 
 /* ---------- Misc layout helpers ---------- */
-.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 @media (max-width: 1000px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
 .flex { display: flex; align-items: center; gap: 10px; }
 .flex-col { display: flex; flex-direction: column; gap: 10px; }
