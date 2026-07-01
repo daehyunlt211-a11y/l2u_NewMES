@@ -103,7 +103,7 @@ export async function deliveries(root) {
           <input class="input input--date" type="date" id="dlv-to" aria-label="종료일"/>
         </div>
       </div>
-      <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="dlv-chips"></div></div>
+      <div class="toolbar" style="border-top:0;padding-top:12px"><div class="chips" id="dlv-chips"></div></div>
       <div class="table-wrap"><div id="dlv-table"></div></div>
     </div>`;
 

@@ -67,7 +67,7 @@ export function createInspectionPage(cfg) {
           <div class="search-box grow">${icon('search', 16)}<input id="ins-search" placeholder="검사번호·품목·거래처 검색" autocomplete="off"/></div>
           ${dateRangeHTML('검사일')}
         </div>
-        <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="ins-chips"></div></div>
+        <div class="toolbar" style="border-top:0;padding-top:12px"><div class="chips" id="ins-chips"></div></div>
         <div class="table-wrap"><div id="ins-table"><div class="spinner"></div></div></div>
       </div>`;
 
@@ -447,7 +447,7 @@ export async function shippingInspection(root) {
     <div id="si-stats"></div>
     <div class="card">
       <div class="toolbar"><div class="search-box grow">${icon('search', 16)}<input id="si-search" placeholder="수주번호·거래처·품명 검색" autocomplete="off"/></div>${dateRangeHTML('검사일')}</div>
-      <div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="si-chips"></div></div>
+      <div class="toolbar" style="border-top:0;padding-top:12px"><div class="chips" id="si-chips"></div></div>
       <div class="table-wrap"><div id="si-table"><div class="spinner"></div></div></div>
     </div>`;
   root.querySelector('#si-refresh').onclick = () => reload();

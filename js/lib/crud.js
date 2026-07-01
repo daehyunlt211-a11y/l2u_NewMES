@@ -123,7 +123,7 @@ export function createCrudPage(cfg) {
     function renderChips() {
       const slot = root.querySelector('#chips-slot');
       const c = cfg.statusChips;
-      slot.innerHTML = `<div class="toolbar" style="border-top:0;padding-top:0"><div class="chips" id="chips"></div></div>`;
+      slot.innerHTML = `<div class="toolbar" style="border-top:0;padding-top:12px"><div class="chips" id="chips"></div></div>`;
       const wrap = slot.querySelector('#chips');
       const opts = [{ value: '__all__', label: '전체' }, ...c.options.map(o => ({ value: optVal(o), label: optLabel(o) }))];
       wrap.innerHTML = opts.map(o => `<button class="chip ${state.chip === o.value ? 'active' : ''}" data-chip="${escapeHtml(o.value)}">${escapeHtml(o.label)}<span class="chip__count" data-count="${escapeHtml(o.value)}"></span></button>`).join('');
