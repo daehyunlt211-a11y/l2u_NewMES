@@ -1,0 +1,9 @@
+{
+  // Cloudflare Workers(정적 자산) 배포 설정 — 기존 Worker 'l2unewmes' 업데이트
+  "name": "l2unewmes",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./",
+    "not_found_handling": "single-page-application"
+  }
+}
